@@ -1,0 +1,254 @@
+// GS RERP — WMS + Logistika ma'lumotlar bazasi sxemasi
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  warehouse
+  logistics
+  accounting
+}
+
+enum LocationType {
+  warehouse
+  border_crossing
+  customs
+}
+
+enum PackingType {
+  carton
+  woven_bag
+  pallet
+  other
+}
+
+enum BatchStatus {
+  in_stock
+  partially_loaded
+  fully_loaded
+}
+
+enum TruckStatus {
+  loading
+  departed
+  arrived
+}
+
+enum LoadingEventStatus {
+  loading
+  departed
+  arrived
+  cleared
+}
+
+enum CostType {
+  forklift
+  customs
+  tax_refund
+  other
+}
+
+enum ReconciliationStatus {
+  pending
+  confirmed
+  discrepancy
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         UserRole
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  intakeBatches  IntakeBatch[]    @relation("IntakeCreatedBy")
+  loadingEvents  LoadingEvent[]   @relation("LoadingEventCreatedBy")
+  loadingLines   LoadingLineItem[] @relation("LoadingLineCreatedBy")
+  loadingCosts   LoadingCost[]    @relation("LoadingCostCreatedBy")
+  auditLogs      AuditLog[]
+
+  @@map("users")
+}
+
+model Client {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  phone        String?
+  notes        String?
+  isActive     Boolean  @default(true)
+  portalUserId String?  @unique // future client-portal seam, unused in MVP
+  createdAt    DateTime @default(now())
+
+  intakeBatches           IntakeBatch[]
+  deliveryReconciliations DeliveryReconciliation[]
+
+  @@map("clients")
+}
+
+model Location {
+  id      String       @id @default(cuid())
+  name    String
+  type    LocationType
+  country String
+
+  intakeBatches       IntakeBatch[]
+  trucksHere          Truck[]              @relation("TruckCurrentLocation")
+  loadingEventsFrom    LoadingEvent[]       @relation("LoadingEventFrom")
+  loadingEventsTo      LoadingEvent[]       @relation("LoadingEventTo")
+  transitCheckpoints  TransitCheckpoint[]
+
+  @@map("locations")
+}
+
+model IntakeBatch {
+  id                 String      @id @default(cuid())
+  client             Client      @relation(fields: [clientId], references: [id])
+  clientId           String
+  location           Location    @relation(fields: [locationId], references: [id])
+  locationId         String
+  intakeDate         DateTime
+  productName        String?
+  packingType        PackingType
+  lengthM            Decimal     @db.Decimal(8, 3)
+  widthM             Decimal     @db.Decimal(8, 3)
+  heightM            Decimal     @db.Decimal(8, 3)
+  packageCount       Int
+  unitQty            Int?
+  volumeCbm          Decimal     @db.Decimal(10, 3)
+  unitGrossWeightKg  Decimal?    @db.Decimal(10, 2)
+  totalWeightKg      Decimal?    @db.Decimal(10, 2)
+  costNotes          String?
+  status             BatchStatus @default(in_stock)
+  createdBy          User        @relation("IntakeCreatedBy", fields: [createdById], references: [id])
+  createdById        String
+  createdAt          DateTime    @default(now())
+
+  loadingLines LoadingLineItem[]
+
+  @@index([clientId])
+  @@index([locationId])
+  @@index([status])
+  @@map("intake_batches")
+}
+
+model Truck {
+  id                String      @id @default(cuid())
+  code              String      @unique
+  plateNumber       String?
+  currentLocation   Location?   @relation("TruckCurrentLocation", fields: [currentLocationId], references: [id])
+  currentLocationId String?
+  status            TruckStatus @default(loading)
+  createdAt         DateTime    @default(now())
+
+  loadingEvents LoadingEvent[]
+
+  @@map("trucks")
+}
+
+model LoadingEvent {
+  id             String              @id @default(cuid())
+  truck          Truck               @relation(fields: [truckId], references: [id])
+  truckId        String
+  loadedDate     DateTime
+  fromLocation   Location            @relation("LoadingEventFrom", fields: [fromLocationId], references: [id])
+  fromLocationId String
+  toLocation     Location?           @relation("LoadingEventTo", fields: [toLocationId], references: [id])
+  toLocationId   String?
+  status         LoadingEventStatus  @default(loading)
+  createdBy      User                @relation("LoadingEventCreatedBy", fields: [createdById], references: [id])
+  createdById    String
+  createdAt      DateTime            @default(now())
+
+  lineItems           LoadingLineItem[]
+  costs               LoadingCost[]
+  transitCheckpoints  TransitCheckpoint[]
+
+  @@index([truckId])
+  @@map("loading_events")
+}
+
+// Append-only ledger: never update/delete, only insert new rows (incl. corrections)
+model LoadingLineItem {
+  id                 String      @id @default(cuid())
+  loadingEvent       LoadingEvent @relation(fields: [loadingEventId], references: [id])
+  loadingEventId     String
+  intakeBatch        IntakeBatch @relation(fields: [intakeBatchId], references: [id])
+  intakeBatchId      String
+  packageCountLoaded Int
+  note               String?
+  createdBy          User        @relation("LoadingLineCreatedBy", fields: [createdById], references: [id])
+  createdById        String
+  createdAt          DateTime    @default(now())
+
+  @@index([loadingEventId])
+  @@index([intakeBatchId])
+  @@map("loading_line_items")
+}
+
+model LoadingCost {
+  id             String       @id @default(cuid())
+  loadingEvent   LoadingEvent @relation(fields: [loadingEventId], references: [id])
+  loadingEventId String
+  costType       CostType
+  amountCny      Decimal      @db.Decimal(12, 2)
+  notes          String?
+  createdBy      User         @relation("LoadingCostCreatedBy", fields: [createdById], references: [id])
+  createdById    String
+  createdAt      DateTime     @default(now())
+
+  @@index([loadingEventId])
+  @@map("loading_costs")
+}
+
+model TransitCheckpoint {
+  id             String       @id @default(cuid())
+  loadingEvent   LoadingEvent @relation(fields: [loadingEventId], references: [id])
+  loadingEventId String
+  location       Location     @relation(fields: [locationId], references: [id])
+  locationId     String
+  arrivedAt      DateTime
+  note           String?
+
+  @@index([loadingEventId])
+  @@map("transit_checkpoints")
+}
+
+model DeliveryReconciliation {
+  id                     String                @id @default(cuid())
+  client                 Client                @relation(fields: [clientId], references: [id])
+  clientId               String
+  reconDate              DateTime
+  expectedPackageCount   Int
+  confirmedPackageCount  Int?
+  discrepancyNotes       String?
+  status                 ReconciliationStatus  @default(pending)
+  createdAt              DateTime              @default(now())
+
+  @@index([clientId])
+  @@map("delivery_reconciliations")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tableName  String
+  recordId   String
+  action     String
+  user       User?    @relation(fields: [userId], references: [id])
+  userId     String?
+  diffJson   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([tableName, recordId])
+  @@map("audit_logs")
+}

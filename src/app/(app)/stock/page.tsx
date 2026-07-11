@@ -1,0 +1,110 @@
+import { prisma } from "@/lib/db/prisma";
+import { requireSession } from "@/lib/auth/guards";
+import { Card, CardContent } from "@/components/ui/card";
+import { Select } from "@/components/ui/input";
+
+const PACKING_LABEL: Record<string, string> = {
+  carton: "Karton",
+  woven_bag: "Paket",
+  pallet: "Pallet",
+  other: "Boshqa",
+};
+
+export default async function StockPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ clientId?: string; locationId?: string }>;
+}) {
+  await requireSession();
+  const { clientId, locationId } = await searchParams;
+
+  const [batches, clients, locations] = await Promise.all([
+    prisma.intakeBatch.findMany({
+      where: {
+        status: { in: ["in_stock", "partially_loaded"] },
+        clientId: clientId || undefined,
+        locationId: locationId || undefined,
+      },
+      orderBy: { intakeDate: "asc" },
+      include: { client: true, location: true, loadingLines: true },
+    }),
+    prisma.client.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true } }),
+    prisma.location.findMany({ where: { type: "warehouse" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+  ]);
+
+  const rows = batches.map((b) => {
+    const loaded = b.loadingLines.reduce((sum, l) => sum + l.packageCountLoaded, 0);
+    return { ...b, remaining: b.packageCount - loaded };
+  });
+
+  const totalVolume = rows.reduce((sum, r) => sum + (Number(r.volumeCbm) * r.remaining) / r.packageCount, 0);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-slate-900">Ombor qoldig&apos;i</h1>
+        <div className="text-sm text-slate-500">Jami hajm: {totalVolume.toFixed(2)} m³</div>
+      </div>
+
+      <form className="flex gap-3" method="get">
+        <Select name="clientId" defaultValue={clientId ?? ""} className="w-48">
+          <option value="">Barcha mijozlar</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.code}
+            </option>
+          ))}
+        </Select>
+        <Select name="locationId" defaultValue={locationId ?? ""} className="w-48">
+          <option value="">Barcha joylashuvlar</option>
+          {locations.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+        </Select>
+        <button type="submit" className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+          Filtrlash
+        </button>
+      </form>
+
+      <Card>
+        <CardContent className="p-0 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Mijoz</th>
+                <th className="px-4 py-2">Joylashuv</th>
+                <th className="px-4 py-2">Kirim sanasi</th>
+                <th className="px-4 py-2">Mahsulot</th>
+                <th className="px-4 py-2">Qadoq</th>
+                <th className="px-4 py-2">Jami joy</th>
+                <th className="px-4 py-2">Qolgan joy</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
+                    Omborda qoldiq yo&apos;q
+                  </td>
+                </tr>
+              )}
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="px-4 py-2 font-medium text-slate-900">{r.client.code}</td>
+                  <td className="px-4 py-2 text-slate-600">{r.location.name}</td>
+                  <td className="px-4 py-2 text-slate-600">{r.intakeDate.toLocaleDateString("uz-UZ")}</td>
+                  <td className="px-4 py-2 text-slate-600">{r.productName ?? "-"}</td>
+                  <td className="px-4 py-2 text-slate-600">{PACKING_LABEL[r.packingType]}</td>
+                  <td className="px-4 py-2 text-slate-600">{r.packageCount}</td>
+                  <td className="px-4 py-2 font-semibold text-slate-900">{r.remaining}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

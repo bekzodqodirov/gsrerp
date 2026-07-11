@@ -1,0 +1,46 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db/prisma";
+import { requireRole } from "@/lib/auth/guards";
+import { clientSchema } from "@/lib/validation/schemas";
+import { parseOrError, formDataToObject, ActionState } from "@/lib/actions/action-state";
+
+export async function createClient(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireRole(["admin", "warehouse", "logistics"]);
+
+  const parsed = parseOrError(clientSchema, formDataToObject(formData));
+  if (parsed.error) return parsed.error;
+
+  const existing = await prisma.client.findUnique({ where: { code: parsed.data.code } });
+  if (existing) {
+    return { error: "Bu kod allaqachon mavjud", fieldErrors: { code: "Bu kod allaqachon mavjud" } };
+  }
+
+  await prisma.client.create({ data: parsed.data });
+  revalidatePath("/clients");
+  redirect("/clients");
+}
+
+export async function updateClient(id: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireRole(["admin", "warehouse", "logistics"]);
+
+  const parsed = parseOrError(clientSchema, formDataToObject(formData));
+  if (parsed.error) return parsed.error;
+
+  const existing = await prisma.client.findFirst({ where: { code: parsed.data.code, NOT: { id } } });
+  if (existing) {
+    return { error: "Bu kod allaqachon mavjud", fieldErrors: { code: "Bu kod allaqachon mavjud" } };
+  }
+
+  await prisma.client.update({ where: { id }, data: parsed.data });
+  revalidatePath("/clients");
+  redirect("/clients");
+}
+
+export async function toggleClientActive(id: string, isActive: boolean) {
+  await requireRole(["admin"]);
+  await prisma.client.update({ where: { id }, data: { isActive } });
+  revalidatePath("/clients");
+}

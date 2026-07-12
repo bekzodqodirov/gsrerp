@@ -86,7 +86,15 @@ function MiniField({
   );
 }
 
-export function IntakeForm({ clients, locations }: { clients: Option[]; locations: Option[] }) {
+export function IntakeForm({
+  clients,
+  locations,
+  lockedLocationId,
+}: {
+  clients: Option[];
+  locations: Option[];
+  lockedLocationId?: string | null;
+}) {
   const [state, formAction] = useActionState<ActionState, FormData>(createIntakeBatchesBulk, {});
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
@@ -141,16 +149,25 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
           </Select>
         </Field>
         <Field label="Joylashuv (ombor)" error={state.fieldErrors?.locationId}>
-          <Select name="locationId" required defaultValue="">
-            <option value="" disabled>
-              — tanlang —
-            </option>
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.label}
+          {lockedLocationId ? (
+            <>
+              <input type="hidden" name="locationId" value={lockedLocationId} />
+              <div className="flex h-10 items-center rounded-md border border-slate-200 bg-slate-100 px-3 text-sm text-slate-600">
+                {locations.find((l) => l.id === lockedLocationId)?.label ?? "-"}
+              </div>
+            </>
+          ) : (
+            <Select name="locationId" required defaultValue="">
+              <option value="" disabled>
+                — tanlang —
               </option>
-            ))}
-          </Select>
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}
+                </option>
+              ))}
+            </Select>
+          )}
         </Field>
         <Field label="Kirim sanasi" error={state.fieldErrors?.intakeDate}>
           <Input type="date" name="intakeDate" required defaultValue={today} />
@@ -166,9 +183,8 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
       </div>
 
       <p className="text-xs text-slate-500">
-        Shu GS-kod va sanada kelgan har xil turdagi karobka/tovarni alohida qator sifatida qo&apos;shing.
-        X/Y/Z va 1 dona kg kiritilsa, Umumiy kub/kg avtomatik hisoblanadi — o&apos;lchash imkoni bo&apos;lmasa
-        Umumiy kub/kg ustunlariga to&apos;g&apos;ridan-to&apos;g&apos;ri yozing.
+        Shu GS-kod va sanada kelgan har xil turdagi karobka/tovarni pastda alohida qator sifatida qo&apos;shing —
+        har bir qator uchun Mahsulot nomi, Karobka soni, Umumiy kub va Umumiy kg ni kiriting.
       </p>
 
       <Field label="Umumiy qabul rasmi (ixtiyoriy, bir nechta)" error={state.fieldErrors?.receiptPhotos}>
@@ -201,8 +217,8 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="col-span-2">
                 <MiniField label="Mahsulot nomi">
                   <Input
                     value={row.productName}
@@ -218,42 +234,6 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
                   inputMode="numeric"
                   value={row.packageCount}
                   onChange={(e) => updateRow(i, "packageCount", e.target.value)}
-                />
-              </MiniField>
-              <MiniField label="X (sm)">
-                <Input
-                  type="number"
-                  step="0.1"
-                  inputMode="decimal"
-                  value={row.lengthCm}
-                  onChange={(e) => updateRow(i, "lengthCm", e.target.value)}
-                />
-              </MiniField>
-              <MiniField label="Y (sm)">
-                <Input
-                  type="number"
-                  step="0.1"
-                  inputMode="decimal"
-                  value={row.widthCm}
-                  onChange={(e) => updateRow(i, "widthCm", e.target.value)}
-                />
-              </MiniField>
-              <MiniField label="Z (sm)">
-                <Input
-                  type="number"
-                  step="0.1"
-                  inputMode="decimal"
-                  value={row.heightCm}
-                  onChange={(e) => updateRow(i, "heightCm", e.target.value)}
-                />
-              </MiniField>
-              <MiniField label="1 dona, kg">
-                <Input
-                  type="number"
-                  step="0.01"
-                  inputMode="decimal"
-                  value={row.unitWeightKg}
-                  onChange={(e) => updateRow(i, "unitWeightKg", e.target.value)}
                 />
               </MiniField>
               <MiniField label="Umumiy kub, m³" error={state.fieldErrors?.[`lines.${i}.volumeCbm`]}>
@@ -274,22 +254,68 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
                   onChange={(e) => updateRow(i, "totalWeightKg", e.target.value)}
                 />
               </MiniField>
-              <div className="col-span-2 lg:col-span-2">
+              <div className="col-span-2">
                 <MiniField label="Izoh">
                   <Input value={row.costNotes} onChange={(e) => updateRow(i, "costNotes", e.target.value)} />
                 </MiniField>
               </div>
-              <div className="col-span-2 sm:col-span-3 lg:col-span-2">
-                <MiniField label="Tovar rasmi (bir nechta)">
-                  <input
-                    type="file"
-                    name={`rowPhotos_${i}`}
-                    accept="image/*"
-                    multiple
-                    className="block w-full rounded-md border border-dashed border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-accent/10 file:px-2 file:py-1 file:text-xs file:font-medium file:text-accent"
+            </div>
+
+            <details className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+              <summary className="cursor-pointer text-xs font-medium text-slate-500">
+                O&apos;lchab hisoblash (ixtiyoriy) — X/Y/Z va 1 dona kg kiritsangiz, yuqoridagi Umumiy kub/kg
+                avtomatik hisoblanadi
+              </summary>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <MiniField label="X, sm">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    inputMode="decimal"
+                    value={row.lengthCm}
+                    onChange={(e) => updateRow(i, "lengthCm", e.target.value)}
+                  />
+                </MiniField>
+                <MiniField label="Y, sm">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    inputMode="decimal"
+                    value={row.widthCm}
+                    onChange={(e) => updateRow(i, "widthCm", e.target.value)}
+                  />
+                </MiniField>
+                <MiniField label="Z, sm">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    inputMode="decimal"
+                    value={row.heightCm}
+                    onChange={(e) => updateRow(i, "heightCm", e.target.value)}
+                  />
+                </MiniField>
+                <MiniField label="1 dona, kg">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={row.unitWeightKg}
+                    onChange={(e) => updateRow(i, "unitWeightKg", e.target.value)}
                   />
                 </MiniField>
               </div>
+            </details>
+
+            <div className="mt-3">
+              <MiniField label="Tovar rasmi (bir nechta)">
+                <input
+                  type="file"
+                  name={`rowPhotos_${i}`}
+                  accept="image/*"
+                  multiple
+                  className="block w-full rounded-md border border-dashed border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-accent/10 file:px-2 file:py-1 file:text-xs file:font-medium file:text-accent"
+                />
+              </MiniField>
             </div>
           </div>
         ))}

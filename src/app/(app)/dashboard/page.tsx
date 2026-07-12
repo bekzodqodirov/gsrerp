@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { Users, Boxes, Package, Truck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireSession } from "@/lib/auth/guards";
 
 const STAT_STYLES = [
   { icon: Users, chip: "bg-indigo-100 text-indigo-600" },
@@ -15,10 +16,16 @@ export default async function DashboardPage({
   searchParams: Promise<{ denied?: string }>;
 }) {
   const { denied } = await searchParams;
+  const session = await requireSession();
+  const myLocationId = session.user.role === "warehouse" ? session.user.locationId : null;
+
   const [activeClients, stockAgg, trucksInTransit, recentIntakes] = await Promise.all([
     prisma.client.count({ where: { isActive: true } }),
     prisma.intakeBatch.aggregate({
-      where: { status: { in: ["in_stock", "partially_loaded"] } },
+      where: {
+        status: { in: ["in_stock", "partially_loaded"] },
+        currentLocationId: myLocationId ?? undefined,
+      },
       _sum: { packageCount: true, volumeCbm: true },
       _count: true,
     }),
@@ -27,6 +34,7 @@ export default async function DashboardPage({
       departed: await prisma.truck.count({ where: { status: "departed" } }),
     })),
     prisma.intakeBatch.findMany({
+      where: { currentLocationId: myLocationId ?? undefined },
       take: 5,
       orderBy: { createdAt: "desc" },
       include: { client: true, location: true },
@@ -35,7 +43,7 @@ export default async function DashboardPage({
 
   const stats = [
     { label: "Faol mijozlar", value: activeClients.toString() },
-    { label: "Omborda partiyalar", value: (stockAgg._count ?? 0).toString() },
+    { label: myLocationId ? "Ombordagi partiyalar (mening omborim)" : "Omborda partiyalar", value: (stockAgg._count ?? 0).toString() },
     { label: "Omborda hajm (m³)", value: Number(stockAgg._sum.volumeCbm ?? 0).toFixed(2) },
     { label: "Yuklanmoqda / Yo'lda", value: `${trucksInTransit.loading} / ${trucksInTransit.departed}` },
   ];
@@ -70,7 +78,7 @@ export default async function DashboardPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>So&apos;nggi kirimlar</CardTitle>
+          <CardTitle>{myLocationId ? "Mening omborimdagi so'nggi kirimlar" : "So'nggi kirimlar"}</CardTitle>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">

@@ -36,6 +36,10 @@ export const intakeBatchLineSchema = z.object({
   costNotes: z.string().trim().optional(),
 });
 
+export const intakeBatchEditSchema = intakeBatchLineSchema.extend({
+  packingType: z.enum(["carton", "woven_bag", "pallet", "other"]),
+});
+
 export const intakeBatchBulkSchema = z.object({
   clientId: z.string().min(1, "Mijoz tanlanmagan"),
   locationId: z.string().min(1, "Joylashuv tanlanmagan"),
@@ -73,9 +77,15 @@ export const deliveryReconciliationSchema = z.object({
   discrepancyNotes: z.string().trim().optional(),
 });
 
-export const userSchema = z.object({
-  email: z.string().trim().email("Email noto'g'ri"),
-  name: z.string().trim().min(1, "Ism majburiy"),
-  role: z.enum(["admin", "warehouse", "logistics", "accounting", "sales"]),
-  password: z.string().min(6, "Kamida 6 belgi"),
-});
+export const userSchema = z
+  .object({
+    email: z.string().trim().email("Email noto'g'ri"),
+    name: z.string().trim().min(1, "Ism majburiy"),
+    role: z.enum(["admin", "warehouse", "logistics", "accounting", "sales"]),
+    password: z.string().min(6, "Kamida 6 belgi"),
+    locationId: z.string().trim().optional(),
+  })
+  .refine((d) => d.role !== "warehouse" || !!d.locationId, {
+    message: "Ombor xodimi uchun ombor tanlanishi shart",
+    path: ["locationId"],
+  });

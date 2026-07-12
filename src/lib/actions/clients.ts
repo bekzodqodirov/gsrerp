@@ -10,7 +10,7 @@ import { advanceCounterIfUsed } from "@/lib/actions/gs-code";
 import { logAudit } from "@/lib/audit/log";
 
 export async function createClient(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireRole(["admin", "warehouse", "logistics", "sales"]);
+  const session = await requireRole(["admin", "logistics", "sales"]);
 
   const parsed = parseOrError(clientSchema, formDataToObject(formData));
   if (parsed.error) return parsed.error;
@@ -39,7 +39,7 @@ export async function createClient(_prev: ActionState, formData: FormData): Prom
 }
 
 export async function updateClient(id: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireRole(["admin", "warehouse", "logistics", "sales"]);
+  const session = await requireRole(["admin", "logistics", "sales"]);
 
   const parsed = parseOrError(clientSchema, formDataToObject(formData));
   if (parsed.error) return parsed.error;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/input";
@@ -16,8 +16,9 @@ function SubmitButton() {
   );
 }
 
-export function UserForm() {
+export function UserForm({ locations }: { locations: { id: string; name: string }[] }) {
   const [state, formAction] = useActionState<ActionState, FormData>(createUser, {});
+  const [role, setRole] = useState("warehouse");
 
   return (
     <form action={formAction} className="space-y-4">
@@ -28,7 +29,7 @@ export function UserForm() {
         <Input type="email" name="email" required />
       </Field>
       <Field label="Rol" error={state.fieldErrors?.role}>
-        <Select name="role" required defaultValue="warehouse">
+        <Select name="role" required value={role} onChange={(e) => setRole(e.target.value)}>
           <option value="admin">Admin</option>
           <option value="warehouse">Ombor xodimi</option>
           <option value="logistics">Logistika menejeri</option>
@@ -36,6 +37,20 @@ export function UserForm() {
           <option value="sales">Sotuv menejeri</option>
         </Select>
       </Field>
+      {role === "warehouse" && (
+        <Field label="Ombor (faqat shu joylashuvni ko'radi)" error={state.fieldErrors?.locationId}>
+          <Select name="locationId" required defaultValue="">
+            <option value="" disabled>
+              — tanlang —
+            </option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
       <Field label="Vaqtinchalik parol" error={state.fieldErrors?.password}>
         <Input type="text" name="password" required minLength={6} />
       </Field>

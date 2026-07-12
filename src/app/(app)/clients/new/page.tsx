@@ -6,7 +6,7 @@ import { getSuggestedClientCode } from "@/lib/actions/gs-code";
 import { requireRole } from "@/lib/auth/guards";
 
 export default async function NewClientPage() {
-  const session = await requireRole(["admin", "warehouse", "logistics", "sales"]);
+  const session = await requireRole(["admin", "logistics", "sales"]);
   const [suggestedCode, salesManagers] = await Promise.all([
     getSuggestedClientCode(),
     prisma.user.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),

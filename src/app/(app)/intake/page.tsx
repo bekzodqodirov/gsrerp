@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { stageLabel, stageTone } from "@/lib/stage-label";
+import { PhotoLightbox } from "@/components/photo-lightbox";
 
 const PACKING_LABEL: Record<string, string> = {
   carton: "Karton",
@@ -13,27 +14,12 @@ const PACKING_LABEL: Record<string, string> = {
   other: "Boshqa",
 };
 
-function PhotoThumbs({ photoIds }: { photoIds: string[] }) {
-  if (photoIds.length === 0) return <span className="text-slate-300">-</span>;
-  const shown = photoIds.slice(0, 3);
-  const extra = photoIds.length - shown.length;
-  return (
-    <div className="flex items-center gap-1">
-      {shown.map((id) => (
-        <a key={id} href={`/api/photos/${id}`} target="_blank" rel="noreferrer">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/photos/${id}`} alt="" className="h-8 w-8 rounded object-cover ring-1 ring-slate-200" />
-        </a>
-      ))}
-      {extra > 0 && <span className="text-xs text-slate-400">+{extra}</span>}
-    </div>
-  );
-}
-
 export default async function IntakePage() {
-  await requireRole(["admin", "warehouse"]);
+  const session = await requireRole(["admin", "warehouse"]);
+  const myLocationId = session.user.role === "warehouse" ? session.user.locationId : null;
 
   const batches = await prisma.intakeBatch.findMany({
+    where: { currentLocationId: myLocationId ?? undefined },
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
@@ -48,7 +34,9 @@ export default async function IntakePage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-slate-900">Kirim (Ombor)</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          Kirim (Ombor){myLocationId && <span className="text-slate-400"> — mening omborim</span>}
+        </h1>
         <Link href="/intake/new">
           <Button>+ Yangi kirim</Button>
         </Link>
@@ -94,10 +82,10 @@ export default async function IntakePage() {
                     {b.totalWeightKg ? Number(b.totalWeightKg).toFixed(1) : "-"}
                   </td>
                   <td className="px-4 py-2">
-                    <PhotoThumbs photoIds={b.photos.map((p) => p.id)} />
+                    <PhotoLightbox photoIds={b.photos.map((p) => p.id)} />
                   </td>
                   <td className="px-4 py-2">
-                    <PhotoThumbs photoIds={b.receipt?.photos.map((p) => p.id) ?? []} />
+                    <PhotoLightbox photoIds={b.receipt?.photos.map((p) => p.id) ?? []} />
                   </td>
                   <td className="px-4 py-2">
                     <Badge tone={stageTone(b.currentLocation, b.inTransit)}>

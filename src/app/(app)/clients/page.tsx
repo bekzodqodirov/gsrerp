@@ -13,7 +13,7 @@ export default async function ClientsPage({
   searchParams: Promise<{ salesManagerId?: string }>;
 }) {
   const session = await requireSession();
-  const canManage = ["admin", "warehouse", "logistics", "sales"].includes(session.user.role);
+  const canManage = ["admin", "logistics", "sales"].includes(session.user.role);
   const isAdmin = session.user.role === "admin";
   const { salesManagerId } = await searchParams;
 

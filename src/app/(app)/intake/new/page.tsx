@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IntakeForm } from "./intake-form";
 
 export default async function NewIntakePage() {
-  await requireRole(["admin", "warehouse"]);
+  const session = await requireRole(["admin", "warehouse"]);
+  const myLocationId = session.user.role === "warehouse" ? session.user.locationId : null;
 
   const [clients, locations] = await Promise.all([
     prisma.client.findMany({ where: { isActive: true }, orderBy: { code: "asc" }, select: { id: true, code: true, name: true } }),
@@ -21,6 +22,7 @@ export default async function NewIntakePage() {
           <IntakeForm
             clients={clients.map((c) => ({ id: c.id, label: `${c.code} — ${c.name}` }))}
             locations={locations.map((l) => ({ id: l.id, label: l.name }))}
+            lockedLocationId={myLocationId}
           />
         </CardContent>
       </Card>

@@ -7,7 +7,7 @@ import { ClientForm } from "../client-form";
 import { updateClient, toggleClientActive } from "@/lib/actions/clients";
 
 export default async function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireRole(["admin", "warehouse", "logistics", "sales"]);
+  await requireRole(["admin", "logistics", "sales"]);
   const { id } = await params;
 
   const [client, salesManagers] = await Promise.all([

@@ -12,13 +12,49 @@ type Option = { id: string; label: string };
 type Row = {
   productName: string;
   packageCount: string;
+  lengthCm: string;
+  widthCm: string;
+  heightCm: string;
+  unitWeightKg: string;
   volumeCbm: string;
   totalWeightKg: string;
   costNotes: string;
 };
 
+// X/Y/Z (sm) + 1 dona kg o'zgarganda hajm/og'irlik avtomatik qayta hisoblanadi.
+// O'lchash imkoni bo'lmasa, foydalanuvchi Umumiy kub/kg maydonlariga to'g'ridan-to'g'ri
+// yozadi — bu maydonlar faqat X/Y/Z/dona-kg to'liq kiritilganda ustiga yoziladi.
+const RECOMPUTE_TRIGGERS: (keyof Row)[] = ["packageCount", "lengthCm", "widthCm", "heightCm", "unitWeightKg"];
+
 function emptyRow(): Row {
-  return { productName: "", packageCount: "", volumeCbm: "", totalWeightKg: "", costNotes: "" };
+  return {
+    productName: "",
+    packageCount: "",
+    lengthCm: "",
+    widthCm: "",
+    heightCm: "",
+    unitWeightKg: "",
+    volumeCbm: "",
+    totalWeightKg: "",
+    costNotes: "",
+  };
+}
+
+function recomputeRow(row: Row): Row {
+  const count = parseFloat(row.packageCount);
+  const l = parseFloat(row.lengthCm);
+  const w = parseFloat(row.widthCm);
+  const h = parseFloat(row.heightCm);
+  const unitKg = parseFloat(row.unitWeightKg);
+  const next = { ...row };
+
+  if ([count, l, w, h].every((n) => Number.isFinite(n) && n > 0)) {
+    next.volumeCbm = ((l * w * h * count) / 1_000_000).toFixed(3);
+  }
+  if (Number.isFinite(count) && count > 0 && Number.isFinite(unitKg) && unitKg > 0) {
+    next.totalWeightKg = (unitKg * count).toFixed(2);
+  }
+  return next;
 }
 
 function SubmitButton() {
@@ -36,7 +72,13 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
 
   function updateRow(index: number, field: keyof Row, value: string) {
-    setRows((prev) => prev.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+    setRows((prev) =>
+      prev.map((row, i) => {
+        if (i !== index) return row;
+        const updated = { ...row, [field]: value };
+        return RECOMPUTE_TRIGGERS.includes(field) ? recomputeRow(updated) : updated;
+      })
+    );
   }
 
   function addRow() {
@@ -53,6 +95,10 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
       packageCount: r.packageCount,
       volumeCbm: r.volumeCbm,
       totalWeightKg: r.totalWeightKg,
+      unitGrossWeightKg: r.unitWeightKg || undefined,
+      lengthM: r.lengthCm ? String(parseFloat(r.lengthCm) / 100) : undefined,
+      widthM: r.widthCm ? String(parseFloat(r.widthCm) / 100) : undefined,
+      heightM: r.heightCm ? String(parseFloat(r.heightCm) / 100) : undefined,
       costNotes: r.costNotes || undefined,
     }))
   );
@@ -104,30 +150,33 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
 
       <p className="text-xs text-slate-500">
         Shu GS-kod va sanada kelgan har xil turdagi karobka/tovarni alohida qator sifatida qo&apos;shing.
+        X/Y/Z va 1 dona kg kiritilsa, Umumiy kub/kg avtomatik hisoblanadi — o&apos;lchash imkoni bo&apos;lmasa
+        Umumiy kub/kg ustunlariga to&apos;g&apos;ridan-to&apos;g&apos;ri yozing.
       </p>
 
       <div className="overflow-x-auto rounded-md border border-slate-200">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
             <tr>
-              <th className="px-3 py-2">Mahsulot nomi</th>
-              <th className="px-3 py-2">Karobka soni</th>
-              <th className="px-3 py-2">Kub, m³</th>
-              <th className="px-3 py-2">Kilo, kg</th>
-              <th className="px-3 py-2">Izoh</th>
-              <th className="px-3 py-2"></th>
+              <th className="px-2 py-2">Mahsulot</th>
+              <th className="px-2 py-2">Karobka</th>
+              <th className="px-2 py-2">X (sm)</th>
+              <th className="px-2 py-2">Y (sm)</th>
+              <th className="px-2 py-2">Z (sm)</th>
+              <th className="px-2 py-2">1 dona, kg</th>
+              <th className="px-2 py-2">Umumiy kub, m³</th>
+              <th className="px-2 py-2">Umumiy kg</th>
+              <th className="px-2 py-2">Izoh</th>
+              <th className="px-2 py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((row, i) => (
               <tr key={i}>
-                <td className="px-2 py-2">
-                  <Input
-                    value={row.productName}
-                    onChange={(e) => updateRow(i, "productName", e.target.value)}
-                  />
+                <td className="px-1 py-2 w-36">
+                  <Input value={row.productName} onChange={(e) => updateRow(i, "productName", e.target.value)} />
                 </td>
-                <td className="px-2 py-2 w-32">
+                <td className="px-1 py-2 w-20">
                   <Input
                     type="number"
                     step="1"
@@ -138,7 +187,39 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
                     <p className="mt-1 text-xs text-red-600">{state.fieldErrors[`lines.${i}.packageCount`]}</p>
                   )}
                 </td>
-                <td className="px-2 py-2 w-28">
+                <td className="px-1 py-2 w-20">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={row.lengthCm}
+                    onChange={(e) => updateRow(i, "lengthCm", e.target.value)}
+                  />
+                </td>
+                <td className="px-1 py-2 w-20">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={row.widthCm}
+                    onChange={(e) => updateRow(i, "widthCm", e.target.value)}
+                  />
+                </td>
+                <td className="px-1 py-2 w-20">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={row.heightCm}
+                    onChange={(e) => updateRow(i, "heightCm", e.target.value)}
+                  />
+                </td>
+                <td className="px-1 py-2 w-24">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={row.unitWeightKg}
+                    onChange={(e) => updateRow(i, "unitWeightKg", e.target.value)}
+                  />
+                </td>
+                <td className="px-1 py-2 w-28">
                   <Input
                     type="number"
                     step="0.001"
@@ -149,7 +230,7 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
                     <p className="mt-1 text-xs text-red-600">{state.fieldErrors[`lines.${i}.volumeCbm`]}</p>
                   )}
                 </td>
-                <td className="px-2 py-2 w-28">
+                <td className="px-1 py-2 w-28">
                   <Input
                     type="number"
                     step="0.01"
@@ -160,10 +241,10 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
                     <p className="mt-1 text-xs text-red-600">{state.fieldErrors[`lines.${i}.totalWeightKg`]}</p>
                   )}
                 </td>
-                <td className="px-2 py-2">
+                <td className="px-1 py-2 w-32">
                   <Input value={row.costNotes} onChange={(e) => updateRow(i, "costNotes", e.target.value)} />
                 </td>
-                <td className="px-2 py-2 text-right">
+                <td className="px-1 py-2 text-right">
                   <button
                     type="button"
                     onClick={() => removeRow(i)}

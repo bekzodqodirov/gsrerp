@@ -30,6 +30,7 @@ export const intakeBatchLineSchema = z.object({
   lengthM: z.coerce.number().positive().optional().or(z.literal(undefined)),
   widthM: z.coerce.number().positive().optional().or(z.literal(undefined)),
   heightM: z.coerce.number().positive().optional().or(z.literal(undefined)),
+  unitGrossWeightKg: z.coerce.number().positive().optional().or(z.literal(undefined)),
   unitQty: z.coerce.number().int().positive().optional().or(z.literal(undefined)),
   costNotes: z.string().trim().optional(),
 });

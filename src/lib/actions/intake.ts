@@ -49,6 +49,7 @@ export async function createIntakeBatchesBulk(_prev: ActionState, formData: Form
           lengthM: line.lengthM,
           widthM: line.widthM,
           heightM: line.heightM,
+          unitGrossWeightKg: line.unitGrossWeightKg,
           packageCount: line.packageCount,
           unitQty: line.unitQty,
           volumeCbm: line.volumeCbm,

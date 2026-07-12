@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AllocateForm } from "./allocate-form";
 import { CostForm } from "./cost-form";
+import { LoadingCartonScanner } from "./loading-carton-scanner";
 import { updateLoadingEventStatus, addTransitCheckpoint } from "@/lib/actions/loading";
 
 const STATUS_TONE: Record<string, "amber" | "blue" | "green" | "slate"> = {
@@ -116,6 +117,15 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
         </form>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Karobkalarni skanerlash (tavsiya etiladi)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LoadingCartonScanner loadingEventId={event.id} />
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -156,6 +166,7 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
                 </tbody>
               </table>
             </div>
+            <p className="text-xs font-medium text-slate-500">Yoki qo&apos;lda kiriting (skaner ishlamasa):</p>
             <AllocateForm loadingEventId={event.id} batches={availableBatches} />
           </CardContent>
         </Card>

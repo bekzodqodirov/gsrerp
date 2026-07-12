@@ -46,7 +46,7 @@ export async function createLoadingEvent(_prev: ActionState, formData: FormData)
 // LoadingEvent. Only line items whose event departs FROM the batch's current location
 // count toward "loaded on this leg" — earlier hops' line items no longer apply once the
 // batch has physically arrived somewhere new, so it becomes fully available again there.
-async function recomputeBatchStatus(intakeBatchId: string) {
+export async function recomputeBatchStatus(intakeBatchId: string) {
   const batch = await prisma.intakeBatch.findUniqueOrThrow({ where: { id: intakeBatchId } });
   const lines = await prisma.loadingLineItem.findMany({
     where: { intakeBatchId, loadingEvent: { fromLocationId: batch.currentLocationId } },
@@ -153,6 +153,12 @@ export async function updateLoadingEventStatus(loadingEventId: string, status: "
       // it just finished, so status must be recomputed against the new currentLocationId
       // (otherwise it stays "fully_loaded" forever and can never be allocated to the next hop).
       await Promise.all(intakeBatchIds.map((id) => recomputeBatchStatus(id)));
+      // Cartons scanned onto this leg become scannable again for the next hop (or for
+      // final delivery) — same reasoning as the batch-level ledger reset above.
+      await prisma.intakeCarton.updateMany({
+        where: { loadingLineItem: { loadingEventId }, status: "loaded" },
+        data: { status: "in_stock", loadingLineItemId: null },
+      });
     } else if (status === "loading") {
       await prisma.intakeBatch.updateMany({
         where: { id: { in: intakeBatchIds } },

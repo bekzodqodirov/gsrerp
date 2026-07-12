@@ -47,12 +47,13 @@ export default async function DeliveryPage() {
                 <th className="px-4 py-2">Tasdiqlangan joy</th>
                 <th className="px-4 py-2">Holat</th>
                 <th className="px-4 py-2">Tasdiqlash</th>
+                <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {recons.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={7} className="px-4 py-6 text-center text-slate-400">
                     Yozuvlar yo&apos;q
                   </td>
                 </tr>
@@ -83,6 +84,11 @@ export default async function DeliveryPage() {
                           </Button>
                         </form>
                       )}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <Link href={`/delivery/${r.id}`} className="text-sm font-medium text-accent hover:underline">
+                        Skanerlash
+                      </Link>
                     </td>
                   </tr>
                 );

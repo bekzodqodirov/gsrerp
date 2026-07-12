@@ -8,6 +8,7 @@ import { intakeBatchBulkSchema, intakeBatchEditSchema } from "@/lib/validation/s
 import { ActionState } from "@/lib/actions/action-state";
 import { logAudit } from "@/lib/audit/log";
 import { assignNextLetters } from "@/lib/actions/intake-letter";
+import { createCartonsForBatch } from "@/lib/actions/cartons";
 
 async function filesToPhotoRows(files: File[]) {
   const valid = files.filter((f) => f instanceof File && f.size > 0 && f.type.startsWith("image/"));
@@ -113,6 +114,9 @@ export async function createIntakeBatchesBulk(_prev: ActionState, formData: Form
         data: photos.map((p) => ({ ...p, intakeBatchId: batch.id })),
       });
     }
+
+    // Har bir jismoniy karobka o'zining unique (GS1 SSCC-uslubidagi) QR koduga ega bo'ladi.
+    await createCartonsForBatch(batch.id, batch.packageCount);
 
     await logAudit({
       userId: session.user.id,

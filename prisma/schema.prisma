@@ -57,6 +57,12 @@ enum CostType {
   other
 }
 
+enum CartonStatus {
+  in_stock
+  loaded
+  delivered
+}
+
 enum ReconciliationStatus {
   pending
   confirmed
@@ -219,6 +225,7 @@ model IntakeBatch {
 
   loadingLines LoadingLineItem[]
   photos       IntakePhoto[]     @relation("IntakeBatchPhotos")
+  cartons      IntakeCarton[]
 
   @@index([clientId])
   @@index([locationId])
@@ -226,6 +233,48 @@ model IntakeBatch {
   @@index([status])
   @@index([currentLocationId])
   @@map("intake_batches")
+}
+
+// Single row (id=1) holding the next serial number used to build each carton's SSCC
+// (GS1 Serial Shipping Container Code-structured identifier). Continues forever, never
+// reused — this is what makes every physical box's code globally unique.
+model CartonSerialCounter {
+  id        Int @id @default(1)
+  nextValue Int @default(1)
+
+  @@map("carton_serial_counter")
+}
+
+// One row per physical box — this is the real-world scannable unit, distinct from
+// IntakeBatch.letterCode which identifies the product LINE, not the individual carton.
+// sscc is a GS1 SSCC-structured 18-digit code (extension digit + company prefix +
+// serial reference + check digit) printed/encoded on that box's own QR label.
+model IntakeCarton {
+  id              String       @id @default(cuid())
+  batch           IntakeBatch  @relation(fields: [batchId], references: [id])
+  batchId         String
+  sscc            String       @unique
+  sequenceInBatch Int
+  status          CartonStatus @default(in_stock)
+
+  // Set when scanned onto a truck; cleared again once that leg arrives, so the carton
+  // becomes scannable for the next hop (mirrors IntakeBatch's own multi-hop status logic).
+  loadingLineItem   LoadingLineItem? @relation(fields: [loadingLineItemId], references: [id])
+  loadingLineItemId String?
+  loadedAt          DateTime?
+
+  // Set when scanned as received at the final destination — proof of delivery per box.
+  deliveryReconciliation   DeliveryReconciliation? @relation(fields: [deliveryReconciliationId], references: [id])
+  deliveryReconciliationId String?
+  deliveredAt              DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([batchId])
+  @@index([status])
+  @@index([loadingLineItemId])
+  @@index([deliveryReconciliationId])
+  @@map("intake_cartons")
 }
 
 model Truck {
@@ -277,6 +326,8 @@ model LoadingLineItem {
   createdById        String
   createdAt          DateTime     @default(now())
 
+  cartons IntakeCarton[]
+
   @@index([loadingEventId])
   @@index([intakeBatchId])
   @@map("loading_line_items")
@@ -320,6 +371,8 @@ model DeliveryReconciliation {
   discrepancyNotes      String?
   status                ReconciliationStatus @default(pending)
   createdAt             DateTime             @default(now())
+
+  cartons IntakeCarton[]
 
   @@index([clientId])
   @@map("delivery_reconciliations")

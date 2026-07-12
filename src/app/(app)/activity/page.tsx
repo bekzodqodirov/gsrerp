@@ -18,6 +18,9 @@ const TABLE_LABELS: Record<string, string> = {
   users: "Foydalanuvchilar",
   delivery_reconciliations: "Yetkazib berish",
   gs_code_counter: "GS-kod ketma-ketligi",
+  intake_letter_counter: "Harf ketma-ketligi",
+  intake_cartons: "Karobka",
+  carton_serial_counter: "Karobka ketma-ketligi",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -30,6 +33,8 @@ const ACTION_LABELS: Record<string, string> = {
   status_change: "Holatni o'zgartirdi",
   confirm: "Tasdiqladi",
   qr_scan: "QR skanerladi",
+  carton_loaded: "Karobka yuklandi",
+  carton_delivered: "Karobka yetkazildi",
 };
 
 const ACTION_TONE: Record<string, "amber" | "blue" | "green" | "slate" | "red"> = {
@@ -42,6 +47,8 @@ const ACTION_TONE: Record<string, "amber" | "blue" | "green" | "slate" | "red"> 
   status_change: "amber",
   confirm: "blue",
   qr_scan: "slate",
+  carton_loaded: "blue",
+  carton_delivered: "green",
 };
 
 function formatDiff(diff: unknown): string {

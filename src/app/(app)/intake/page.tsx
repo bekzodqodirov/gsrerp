@@ -48,6 +48,7 @@ export default async function IntakePage() {
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-2">Mijoz</th>
+                <th className="px-4 py-2">Kod</th>
                 <th className="px-4 py-2">Joylashuv</th>
                 <th className="px-4 py-2">Sana</th>
                 <th className="px-4 py-2">Mahsulot</th>
@@ -64,7 +65,7 @@ export default async function IntakePage() {
             <tbody className="divide-y divide-slate-100">
               {batches.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={13} className="px-4 py-6 text-center text-slate-400">
                     Kirim yozuvlari yo&apos;q
                   </td>
                 </tr>
@@ -72,6 +73,13 @@ export default async function IntakePage() {
               {batches.map((b) => (
                 <tr key={b.id}>
                   <td className="px-4 py-2 font-medium text-slate-900">{b.client.code}</td>
+                  <td className="px-4 py-2">
+                    {b.letterCode && (
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+                        {b.letterCode}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-2 text-slate-600">{b.location.name}</td>
                   <td className="px-4 py-2 text-slate-600">{b.intakeDate.toLocaleDateString("uz-UZ")}</td>
                   <td className="px-4 py-2 text-slate-600">{b.productName ?? "-"}</td>
@@ -93,9 +101,14 @@ export default async function IntakePage() {
                     </Badge>
                   </td>
                   <td className="px-4 py-2 text-right">
-                    <Link href={`/intake/${b.id}`} className="text-sm font-medium text-accent hover:underline">
-                      QR
-                    </Link>
+                    <div className="flex items-center justify-end gap-3">
+                      <Link href={`/intake/${b.id}/edit`} className="text-sm font-medium text-slate-600 hover:underline">
+                        Tahrirlash
+                      </Link>
+                      <Link href={`/intake/${b.id}`} className="text-sm font-medium text-accent hover:underline">
+                        QR
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

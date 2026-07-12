@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { intakeBatchBulkSchema, intakeBatchEditSchema } from "@/lib/validation/schemas";
 import { ActionState } from "@/lib/actions/action-state";
 import { logAudit } from "@/lib/audit/log";
+import { assignNextLetters } from "@/lib/actions/intake-letter";
 
 async function filesToPhotoRows(files: File[]) {
   const valid = files.filter((f) => f instanceof File && f.size > 0 && f.type.startsWith("image/"));
@@ -66,8 +67,12 @@ export async function createIntakeBatchesBulk(_prev: ActionState, formData: Form
     },
   });
 
+  // Har bir tovar qatoriga doimiy harf beriladi (A, B, C...) — ketma-ketlik butun
+  // tizim bo'yicha uzluksiz davom etadi, shu receiptdagi qatorlar orasida ham tartib bilan.
+  const letters = await assignNextLetters(d.lines.length);
+
   const created = await prisma.$transaction(
-    d.lines.map((line) =>
+    d.lines.map((line, i) =>
       prisma.intakeBatch.create({
         data: {
           clientId: d.clientId,
@@ -76,6 +81,7 @@ export async function createIntakeBatchesBulk(_prev: ActionState, formData: Form
           receiptId: receipt.id,
           intakeDate: new Date(d.intakeDate),
           productName: line.productName,
+          letterCode: letters[i],
           packingType: d.packingType,
           lengthM: line.lengthM,
           widthM: line.widthM,
@@ -115,6 +121,7 @@ export async function createIntakeBatchesBulk(_prev: ActionState, formData: Form
       action: "create",
       diff: {
         clientCode: client.code,
+        letterCode: batch.letterCode,
         productName: batch.productName,
         packageCount: batch.packageCount,
         volumeCbm: batch.volumeCbm.toString(),

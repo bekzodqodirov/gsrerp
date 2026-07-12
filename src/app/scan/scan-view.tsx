@@ -16,13 +16,11 @@ type Scan = AuditLog & { user: User | null };
 
 export function ScanView({
   batch,
-  boxLabel,
   userName,
   lastScans,
   confirmAction,
 }: {
   batch: Batch;
-  boxLabel?: string;
   userName: string;
   lastScans: Scan[];
   confirmAction: (formData: FormData) => Promise<void>;
@@ -34,9 +32,9 @@ export function ScanView({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               {batch.client.code}
-              {boxLabel && (
+              {batch.letterCode && (
                 <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">
-                  {boxLabel}
+                  {batch.letterCode}
                 </span>
               )}
             </CardTitle>
@@ -44,15 +42,7 @@ export function ScanView({
           <CardContent className="space-y-3">
             <div className="text-slate-600">{batch.productName ?? "Mahsulot nomi kiritilmagan"}</div>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm text-slate-600">
-              {boxLabel && (
-                <>
-                  <dt className="text-slate-400">Karobka</dt>
-                  <dd className="font-medium text-slate-900">
-                    {boxLabel} / {batch.packageCount}
-                  </dd>
-                </>
-              )}
-              <dt className="text-slate-400">Jami karobka soni</dt>
+              <dt className="text-slate-400">Karobka soni</dt>
               <dd className="font-medium text-slate-900">{batch.packageCount}</dd>
               <dt className="text-slate-400">Kub, m³</dt>
               <dd className="font-medium text-slate-900">{Number(batch.volumeCbm).toFixed(2)}</dd>
@@ -85,25 +75,15 @@ export function ScanView({
               <CardTitle className="text-sm">Oxirgi skanerlashlar</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              {lastScans.map((s) => {
-                const diff = (s.diffJson as Record<string, unknown> | null) ?? {};
-                return (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between border-b border-slate-100 pb-2 last:border-0 last:pb-0"
-                  >
-                    <span className="font-medium text-slate-700">
-                      {s.user?.name ?? "Noma'lum"}
-                      {typeof diff.box === "string" && (
-                        <span className="ml-1.5 rounded bg-accent/10 px-1.5 py-0.5 text-xs font-bold text-accent">
-                          {diff.box}
-                        </span>
-                      )}
-                    </span>
-                    <span className="text-xs text-slate-400">{s.createdAt.toLocaleString("uz-UZ")}</span>
-                  </div>
-                );
-              })}
+              {lastScans.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between border-b border-slate-100 pb-2 last:border-0 last:pb-0"
+                >
+                  <span className="font-medium text-slate-700">{s.user?.name ?? "Noma'lum"}</span>
+                  <span className="text-xs text-slate-400">{s.createdAt.toLocaleString("uz-UZ")}</span>
+                </div>
+              ))}
             </CardContent>
           </Card>
         )}

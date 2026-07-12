@@ -24,7 +24,7 @@ export default async function ScanTargetPage({ params }: { params: Promise<{ id:
 
   if (!batch) notFound();
 
-  const confirmWithBatch = confirmScan.bind(null, batch.id, null);
+  const confirmWithBatch = confirmScan.bind(null, batch.id);
 
   return (
     <ScanView

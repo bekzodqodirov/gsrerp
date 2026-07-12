@@ -101,6 +101,16 @@ model GsCodeCounter {
   @@map("gs_code_counter")
 }
 
+// Single row (id=1) holding the next letter index (0->A, 1->B, ... 25->Z, 26->AA...)
+// for IntakeBatch.letterCode. Continues across every intake ever created — not reset
+// per receipt or per client — so each product line gets a permanently unique letter.
+model IntakeLetterCounter {
+  id        Int @id @default(1)
+  nextIndex Int @default(0)
+
+  @@map("intake_letter_counter")
+}
+
 model Client {
   id             String   @id @default(cuid())
   code           String   @unique
@@ -185,6 +195,10 @@ model IntakeBatch {
   receiptId         String?
   intakeDate        DateTime
   productName       String?
+  // Har bir tovar qatoriga (partiyaga) berilgan doimiy harf — A, B, C... Ketma-ketlik
+  // butun tizim bo'yicha uzluksiz davom etadi: 1-kirimda 2 tovar bo'lsa A, B; keyingi
+  // kirimning tovarlari C, D bo'lib davom etadi. Jismoniy karobkalar soniga bog'liq emas.
+  letterCode        String?
   packingType       PackingType
   lengthM           Decimal?       @db.Decimal(8, 3)
   widthM            Decimal?       @db.Decimal(8, 3)

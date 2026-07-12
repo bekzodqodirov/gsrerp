@@ -24,7 +24,10 @@ export default async function EditIntakeBatchPage({ params }: { params: Promise<
 
       <Card>
         <CardHeader>
-          <CardTitle>Kirimni tahrirlash — {batch.client.code}</CardTitle>
+          <CardTitle>
+            Kirimni tahrirlash — {batch.client.code}
+            {batch.letterCode && <span className="ml-1 text-slate-400">· {batch.letterCode}</span>}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <EditBatchForm

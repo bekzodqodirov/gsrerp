@@ -5,10 +5,10 @@ export async function generateQrDataUrl(text: string, width = 260): Promise<stri
   return QRCode.toDataURL(text, { margin: 1, width });
 }
 
-// Har bir jismoniy karobka o'zining harfiga ega bo'lishi kerak: 0->A, 1->B, ..., 25->Z,
-// 26->AA... — Excel ustun nomlash tartibi bilan bir xil, shuning uchun karobka soni
-// 26 dan oshsa ham (masalan 40 dona) hech qanday cheklovsiz ishlaydi.
-export function boxLetter(index: number): string {
+// Har bir tovar qatoriga (IntakeBatch) doimiy harf beriladi: 0->A, 1->B, ..., 25->Z,
+// 26->AA... — Excel ustun nomlash tartibi bilan bir xil, shuning uchun ketma-ketlik
+// 26 dan oshsa ham (Z dan keyin AA, AB...) hech qanday cheklovsiz davom etadi.
+export function sequenceLetter(index: number): string {
   let n = index;
   let s = "";
   do {

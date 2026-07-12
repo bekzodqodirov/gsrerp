@@ -10,6 +10,7 @@ import type { ActionState } from "@/lib/actions/action-state";
 type Option = { id: string; label: string };
 
 type Row = {
+  id: string;
   productName: string;
   packageCount: string;
   lengthCm: string;
@@ -28,6 +29,7 @@ const RECOMPUTE_TRIGGERS: (keyof Row)[] = ["packageCount", "lengthCm", "widthCm"
 
 function emptyRow(): Row {
   return {
+    id: Math.random().toString(36).slice(2),
     productName: "",
     packageCount: "",
     lengthCm: "",
@@ -154,6 +156,16 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
         Umumiy kub/kg ustunlariga to&apos;g&apos;ridan-to&apos;g&apos;ri yozing.
       </p>
 
+      <Field label="Umumiy qabul rasmi (ixtiyoriy, bir nechta)" error={state.fieldErrors?.receiptPhotos}>
+        <input
+          type="file"
+          name="receiptPhotos"
+          accept="image/*"
+          multiple
+          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+        />
+      </Field>
+
       <div className="overflow-x-auto rounded-md border border-slate-200">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
@@ -167,12 +179,13 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
               <th className="px-2 py-2">Umumiy kub, m³</th>
               <th className="px-2 py-2">Umumiy kg</th>
               <th className="px-2 py-2">Izoh</th>
+              <th className="px-2 py-2">Rasm</th>
               <th className="px-2 py-2"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((row, i) => (
-              <tr key={i}>
+              <tr key={row.id}>
                 <td className="px-1 py-2 w-36">
                   <Input value={row.productName} onChange={(e) => updateRow(i, "productName", e.target.value)} />
                 </td>
@@ -243,6 +256,9 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
                 </td>
                 <td className="px-1 py-2 w-32">
                   <Input value={row.costNotes} onChange={(e) => updateRow(i, "costNotes", e.target.value)} />
+                </td>
+                <td className="px-1 py-2 w-32">
+                  <input type="file" name={`rowPhotos_${i}`} accept="image/*" multiple className="w-full text-xs" />
                 </td>
                 <td className="px-1 py-2 text-right">
                   <button

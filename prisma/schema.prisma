@@ -72,12 +72,13 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
 
-  intakeBatches  IntakeBatch[]    @relation("IntakeCreatedBy")
-  loadingEvents  LoadingEvent[]   @relation("LoadingEventCreatedBy")
-  loadingLines   LoadingLineItem[] @relation("LoadingLineCreatedBy")
-  loadingCosts   LoadingCost[]    @relation("LoadingCostCreatedBy")
-  auditLogs      AuditLog[]
-  assignedClients Client[]        @relation("ClientSalesManager")
+  intakeBatches   IntakeBatch[]     @relation("IntakeCreatedBy")
+  intakeReceipts  IntakeReceipt[]   @relation("IntakeReceiptCreatedBy")
+  loadingEvents   LoadingEvent[]    @relation("LoadingEventCreatedBy")
+  loadingLines    LoadingLineItem[] @relation("LoadingLineCreatedBy")
+  loadingCosts    LoadingCost[]     @relation("LoadingCostCreatedBy")
+  auditLogs       AuditLog[]
+  assignedClients Client[]          @relation("ClientSalesManager")
 
   @@map("users")
 }
@@ -95,18 +96,19 @@ model GsCodeCounter {
 }
 
 model Client {
-  id              String   @id @default(cuid())
-  code            String   @unique
-  name            String
-  phone           String?
-  notes           String?
-  isActive        Boolean  @default(true)
-  portalUserId    String?  @unique // future client-portal seam, unused in MVP
-  salesManager    User?    @relation("ClientSalesManager", fields: [salesManagerId], references: [id])
-  salesManagerId  String?
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  code           String   @unique
+  name           String
+  phone          String?
+  notes          String?
+  isActive       Boolean  @default(true)
+  portalUserId   String?  @unique // future client-portal seam, unused in MVP
+  salesManager   User?    @relation("ClientSalesManager", fields: [salesManagerId], references: [id])
+  salesManagerId String?
+  createdAt      DateTime @default(now())
 
   intakeBatches           IntakeBatch[]
+  intakeReceipts          IntakeReceipt[]
   deliveryReconciliations DeliveryReconciliation[]
 
   @@index([salesManagerId])
@@ -119,46 +121,87 @@ model Location {
   type    LocationType
   country String
 
-  intakeBatches         IntakeBatch[]
-  intakeBatchesCurrent  IntakeBatch[]        @relation("IntakeCurrentLocation")
-  trucksHere          Truck[]              @relation("TruckCurrentLocation")
-  loadingEventsFrom    LoadingEvent[]       @relation("LoadingEventFrom")
-  loadingEventsTo      LoadingEvent[]       @relation("LoadingEventTo")
-  transitCheckpoints  TransitCheckpoint[]
+  intakeBatches        IntakeBatch[]
+  intakeBatchesCurrent IntakeBatch[]       @relation("IntakeCurrentLocation")
+  intakeReceipts       IntakeReceipt[]
+  trucksHere           Truck[]             @relation("TruckCurrentLocation")
+  loadingEventsFrom    LoadingEvent[]      @relation("LoadingEventFrom")
+  loadingEventsTo      LoadingEvent[]      @relation("LoadingEventTo")
+  transitCheckpoints   TransitCheckpoint[]
 
   @@map("locations")
 }
 
+// One warehouse delivery event (bitta GS-kod + bitta sana + bir nechta mahsulot qatori),
+// yaratilgan bulk Kirim submitiga mos keladi. Umumiy qabul rasmlari shu yerga bog'lanadi;
+// har bir mahsulot qatorining o'z rasmi esa IntakeBatch.photos orqali saqlanadi.
+model IntakeReceipt {
+  id          String   @id @default(cuid())
+  client      Client   @relation(fields: [clientId], references: [id])
+  clientId    String
+  location    Location @relation(fields: [locationId], references: [id])
+  locationId  String
+  intakeDate  DateTime
+  createdBy   User     @relation("IntakeReceiptCreatedBy", fields: [createdById], references: [id])
+  createdById String
+  createdAt   DateTime @default(now())
+
+  batches IntakeBatch[]
+  photos  IntakePhoto[] @relation("IntakeReceiptPhotos")
+
+  @@index([clientId])
+  @@map("intake_receipts")
+}
+
+model IntakePhoto {
+  id              String         @id @default(cuid())
+  data            Bytes
+  mimeType        String
+  intakeReceipt   IntakeReceipt? @relation("IntakeReceiptPhotos", fields: [intakeReceiptId], references: [id])
+  intakeReceiptId String?
+  intakeBatch     IntakeBatch?   @relation("IntakeBatchPhotos", fields: [intakeBatchId], references: [id])
+  intakeBatchId   String?
+  createdAt       DateTime       @default(now())
+
+  @@index([intakeReceiptId])
+  @@index([intakeBatchId])
+  @@map("intake_photos")
+}
+
 model IntakeBatch {
-  id                 String      @id @default(cuid())
-  client             Client      @relation(fields: [clientId], references: [id])
-  clientId           String
-  location           Location    @relation(fields: [locationId], references: [id])
-  locationId         String
-  intakeDate         DateTime
-  productName        String?
-  packingType        PackingType
-  lengthM            Decimal?    @db.Decimal(8, 3)
-  widthM             Decimal?    @db.Decimal(8, 3)
-  heightM            Decimal?    @db.Decimal(8, 3)
-  packageCount       Int
-  unitQty            Int?
-  volumeCbm          Decimal     @db.Decimal(10, 3)
-  unitGrossWeightKg  Decimal?    @db.Decimal(10, 2)
-  totalWeightKg      Decimal     @db.Decimal(10, 2)
-  costNotes          String?
-  status             BatchStatus @default(in_stock)
-  currentLocation    Location    @relation("IntakeCurrentLocation", fields: [currentLocationId], references: [id])
-  currentLocationId  String
-  inTransit          Boolean     @default(false)
-  createdBy          User        @relation("IntakeCreatedBy", fields: [createdById], references: [id])
-  createdById        String
-  createdAt          DateTime    @default(now())
+  id                String         @id @default(cuid())
+  client            Client         @relation(fields: [clientId], references: [id])
+  clientId          String
+  location          Location       @relation(fields: [locationId], references: [id])
+  locationId        String
+  receipt           IntakeReceipt? @relation(fields: [receiptId], references: [id])
+  receiptId         String?
+  intakeDate        DateTime
+  productName       String?
+  packingType       PackingType
+  lengthM           Decimal?       @db.Decimal(8, 3)
+  widthM            Decimal?       @db.Decimal(8, 3)
+  heightM           Decimal?       @db.Decimal(8, 3)
+  packageCount      Int
+  unitQty           Int?
+  volumeCbm         Decimal        @db.Decimal(10, 3)
+  unitGrossWeightKg Decimal?       @db.Decimal(10, 2)
+  totalWeightKg     Decimal        @db.Decimal(10, 2)
+  costNotes         String?
+  status            BatchStatus    @default(in_stock)
+  currentLocation   Location       @relation("IntakeCurrentLocation", fields: [currentLocationId], references: [id])
+  currentLocationId String
+  inTransit         Boolean        @default(false)
+  createdBy         User           @relation("IntakeCreatedBy", fields: [createdById], references: [id])
+  createdById       String
+  createdAt         DateTime       @default(now())
 
   loadingLines LoadingLineItem[]
+  photos       IntakePhoto[]     @relation("IntakeBatchPhotos")
 
   @@index([clientId])
   @@index([locationId])
+  @@index([receiptId])
   @@index([status])
   @@index([currentLocationId])
   @@map("intake_batches")
@@ -179,22 +222,22 @@ model Truck {
 }
 
 model LoadingEvent {
-  id             String              @id @default(cuid())
-  truck          Truck               @relation(fields: [truckId], references: [id])
+  id             String             @id @default(cuid())
+  truck          Truck              @relation(fields: [truckId], references: [id])
   truckId        String
   loadedDate     DateTime
-  fromLocation   Location            @relation("LoadingEventFrom", fields: [fromLocationId], references: [id])
+  fromLocation   Location           @relation("LoadingEventFrom", fields: [fromLocationId], references: [id])
   fromLocationId String
-  toLocation     Location?           @relation("LoadingEventTo", fields: [toLocationId], references: [id])
+  toLocation     Location?          @relation("LoadingEventTo", fields: [toLocationId], references: [id])
   toLocationId   String?
-  status         LoadingEventStatus  @default(loading)
-  createdBy      User                @relation("LoadingEventCreatedBy", fields: [createdById], references: [id])
+  status         LoadingEventStatus @default(loading)
+  createdBy      User               @relation("LoadingEventCreatedBy", fields: [createdById], references: [id])
   createdById    String
-  createdAt      DateTime            @default(now())
+  createdAt      DateTime           @default(now())
 
-  lineItems           LoadingLineItem[]
-  costs               LoadingCost[]
-  transitCheckpoints  TransitCheckpoint[]
+  lineItems          LoadingLineItem[]
+  costs              LoadingCost[]
+  transitCheckpoints TransitCheckpoint[]
 
   @@index([truckId])
   @@map("loading_events")
@@ -202,16 +245,16 @@ model LoadingEvent {
 
 // Append-only ledger: never update/delete, only insert new rows (incl. corrections)
 model LoadingLineItem {
-  id                 String      @id @default(cuid())
+  id                 String       @id @default(cuid())
   loadingEvent       LoadingEvent @relation(fields: [loadingEventId], references: [id])
   loadingEventId     String
-  intakeBatch        IntakeBatch @relation(fields: [intakeBatchId], references: [id])
+  intakeBatch        IntakeBatch  @relation(fields: [intakeBatchId], references: [id])
   intakeBatchId      String
   packageCountLoaded Int
   note               String?
-  createdBy          User        @relation("LoadingLineCreatedBy", fields: [createdById], references: [id])
+  createdBy          User         @relation("LoadingLineCreatedBy", fields: [createdById], references: [id])
   createdById        String
-  createdAt          DateTime    @default(now())
+  createdAt          DateTime     @default(now())
 
   @@index([loadingEventId])
   @@index([intakeBatchId])
@@ -247,29 +290,29 @@ model TransitCheckpoint {
 }
 
 model DeliveryReconciliation {
-  id                     String                @id @default(cuid())
-  client                 Client                @relation(fields: [clientId], references: [id])
-  clientId               String
-  reconDate              DateTime
-  expectedPackageCount   Int
-  confirmedPackageCount  Int?
-  discrepancyNotes       String?
-  status                 ReconciliationStatus  @default(pending)
-  createdAt              DateTime              @default(now())
+  id                    String               @id @default(cuid())
+  client                Client               @relation(fields: [clientId], references: [id])
+  clientId              String
+  reconDate             DateTime
+  expectedPackageCount  Int
+  confirmedPackageCount Int?
+  discrepancyNotes      String?
+  status                ReconciliationStatus @default(pending)
+  createdAt             DateTime             @default(now())
 
   @@index([clientId])
   @@map("delivery_reconciliations")
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  tableName  String
-  recordId   String
-  action     String
-  user       User?    @relation(fields: [userId], references: [id])
-  userId     String?
-  diffJson   Json?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  tableName String
+  recordId  String
+  action    String
+  user      User?    @relation(fields: [userId], references: [id])
+  userId    String?
+  diffJson  Json?
+  createdAt DateTime @default(now())
 
   @@index([tableName, recordId])
   @@map("audit_logs")

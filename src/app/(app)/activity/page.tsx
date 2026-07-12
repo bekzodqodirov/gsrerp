@@ -8,6 +8,7 @@ import { ROLE_LABELS } from "@/lib/nav";
 const TABLE_LABELS: Record<string, string> = {
   clients: "Mijozlar",
   intake_batches: "Kirim",
+  intake_receipts: "Qabul",
   loading_events: "Yuklash hodisasi",
   loading_line_items: "Yuklash qatori",
   loading_costs: "Yuklash xarajati",

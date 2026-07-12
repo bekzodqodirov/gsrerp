@@ -70,12 +70,13 @@ export default async function IntakePage() {
                 <th className="px-4 py-2">Mahsulot rasmi</th>
                 <th className="px-4 py-2">Qabul rasmi</th>
                 <th className="px-4 py-2">Holat</th>
+                <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {batches.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={12} className="px-4 py-6 text-center text-slate-400">
                     Kirim yozuvlari yo&apos;q
                   </td>
                 </tr>
@@ -102,6 +103,11 @@ export default async function IntakePage() {
                     <Badge tone={stageTone(b.currentLocation, b.inTransit)}>
                       {stageLabel(b.currentLocation, b.inTransit)}
                     </Badge>
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <Link href={`/intake/${b.id}`} className="text-sm font-medium text-accent hover:underline">
+                      QR
+                    </Link>
                   </td>
                 </tr>
               ))}

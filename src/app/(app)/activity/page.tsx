@@ -28,6 +28,7 @@ const ACTION_LABELS: Record<string, string> = {
   deactivate: "Nofaollashtirdi",
   status_change: "Holatni o'zgartirdi",
   confirm: "Tasdiqladi",
+  qr_scan: "QR skanerladi",
 };
 
 const ACTION_TONE: Record<string, "amber" | "blue" | "green" | "slate" | "red"> = {
@@ -38,6 +39,7 @@ const ACTION_TONE: Record<string, "amber" | "blue" | "green" | "slate" | "red"> 
   deactivate: "red",
   status_change: "amber",
   confirm: "blue",
+  qr_scan: "slate",
 };
 
 function formatDiff(diff: unknown): string {

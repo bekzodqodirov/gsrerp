@@ -20,6 +20,7 @@ import {
   UserCog,
   X,
   Container,
+  ScanLine,
   type LucideIcon,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/nav";
@@ -31,6 +32,7 @@ const ICONS: Record<string, LucideIcon> = {
   "/intake": PackagePlus,
   "/import": FileSpreadsheet,
   "/stock": Warehouse,
+  "/scan": ScanLine,
   "/trucks": Truck,
   "/loading": PackageCheck,
   "/costs": Wallet,

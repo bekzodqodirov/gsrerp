@@ -28,3 +28,17 @@ tbody tr {
 tbody tr:hover {
   background-color: #f8fafc;
 }
+
+/* QR/barcode label printing: hide app chrome, print only the label itself */
+@media print {
+  nav,
+  header {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

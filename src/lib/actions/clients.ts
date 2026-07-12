@@ -10,24 +10,28 @@ import { advanceCounterIfUsed } from "@/lib/actions/gs-code";
 import { logAudit } from "@/lib/audit/log";
 
 export async function createClient(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireRole(["admin", "warehouse", "logistics"]);
+  const session = await requireRole(["admin", "warehouse", "logistics", "sales"]);
 
   const parsed = parseOrError(clientSchema, formDataToObject(formData));
   if (parsed.error) return parsed.error;
+
+  // Read raw, not via formDataToObject: an empty selection must clear the field (null),
+  // not be silently dropped (formDataToObject filters out empty strings entirely).
+  const salesManagerId = String(formData.get("salesManagerId") ?? "").trim() || null;
 
   const existing = await prisma.client.findUnique({ where: { code: parsed.data.code } });
   if (existing) {
     return { error: "Bu kod allaqachon mavjud", fieldErrors: { code: "Bu kod allaqachon mavjud" } };
   }
 
-  const client = await prisma.client.create({ data: parsed.data });
+  const client = await prisma.client.create({ data: { ...parsed.data, salesManagerId } });
   await advanceCounterIfUsed(parsed.data.code);
   await logAudit({
     userId: session.user.id,
     tableName: "clients",
     recordId: client.id,
     action: "create",
-    diff: { code: client.code, name: client.name, phone: client.phone },
+    diff: { code: client.code, name: client.name, phone: client.phone, salesManagerId },
   });
 
   revalidatePath("/clients");
@@ -35,23 +39,25 @@ export async function createClient(_prev: ActionState, formData: FormData): Prom
 }
 
 export async function updateClient(id: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  const session = await requireRole(["admin", "warehouse", "logistics"]);
+  const session = await requireRole(["admin", "warehouse", "logistics", "sales"]);
 
   const parsed = parseOrError(clientSchema, formDataToObject(formData));
   if (parsed.error) return parsed.error;
+
+  const salesManagerId = String(formData.get("salesManagerId") ?? "").trim() || null;
 
   const existing = await prisma.client.findFirst({ where: { code: parsed.data.code, NOT: { id } } });
   if (existing) {
     return { error: "Bu kod allaqachon mavjud", fieldErrors: { code: "Bu kod allaqachon mavjud" } };
   }
 
-  await prisma.client.update({ where: { id }, data: parsed.data });
+  await prisma.client.update({ where: { id }, data: { ...parsed.data, salesManagerId } });
   await logAudit({
     userId: session.user.id,
     tableName: "clients",
     recordId: id,
     action: "update",
-    diff: { code: parsed.data.code, name: parsed.data.name, phone: parsed.data.phone },
+    diff: { code: parsed.data.code, name: parsed.data.name, phone: parsed.data.phone, salesManagerId },
   });
 
   revalidatePath("/clients");

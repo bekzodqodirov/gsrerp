@@ -4,16 +4,27 @@ import { requireSession } from "@/lib/auth/guards";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/input";
 import { GsCodeSettingsForm } from "./gs-code-settings-form";
 
-export default async function ClientsPage() {
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ salesManagerId?: string }>;
+}) {
   const session = await requireSession();
-  const canManage = ["admin", "warehouse", "logistics"].includes(session.user.role);
+  const canManage = ["admin", "warehouse", "logistics", "sales"].includes(session.user.role);
   const isAdmin = session.user.role === "admin";
+  const { salesManagerId } = await searchParams;
 
-  const [clients, counter] = await Promise.all([
-    prisma.client.findMany({ orderBy: { code: "asc" } }),
+  const [clients, counter, salesManagers] = await Promise.all([
+    prisma.client.findMany({
+      where: { salesManagerId: salesManagerId || undefined },
+      orderBy: { code: "asc" },
+      include: { salesManager: { select: { name: true } } },
+    }),
     canManage ? prisma.gsCodeCounter.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }) : null,
+    prisma.user.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   return (
@@ -49,6 +60,20 @@ export default async function ClientsPage() {
         </Card>
       )}
 
+      <form className="flex gap-3" method="get">
+        <Select name="salesManagerId" defaultValue={salesManagerId ?? ""} className="w-56">
+          <option value="">Barcha sotuv menejerlari</option>
+          {salesManagers.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </Select>
+        <button type="submit" className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
+          Filtrlash
+        </button>
+      </form>
+
       <Card>
         <CardContent className="p-0">
           <table className="w-full text-sm">
@@ -57,6 +82,7 @@ export default async function ClientsPage() {
                 <th className="px-4 py-2">Kod</th>
                 <th className="px-4 py-2">Nomi</th>
                 <th className="px-4 py-2">Telefon</th>
+                <th className="px-4 py-2">Sotuv menejeri</th>
                 <th className="px-4 py-2">Holat</th>
                 <th className="px-4 py-2"></th>
               </tr>
@@ -64,7 +90,7 @@ export default async function ClientsPage() {
             <tbody className="divide-y divide-slate-100">
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                  <td colSpan={6} className="px-4 py-6 text-center text-slate-400">
                     Mijozlar yo&apos;q
                   </td>
                 </tr>
@@ -74,6 +100,7 @@ export default async function ClientsPage() {
                   <td className="px-4 py-2 font-medium text-slate-900">{c.code}</td>
                   <td className="px-4 py-2 text-slate-600">{c.name}</td>
                   <td className="px-4 py-2 text-slate-600">{c.phone ?? "-"}</td>
+                  <td className="px-4 py-2 text-slate-600">{c.salesManager?.name ?? "-"}</td>
                   <td className="px-4 py-2">
                     <Badge tone={c.isActive ? "green" : "slate"}>
                       {c.isActive ? "Faol" : "Nofaol"}

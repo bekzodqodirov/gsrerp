@@ -33,6 +33,7 @@ export function UserForm() {
           <option value="warehouse">Ombor xodimi</option>
           <option value="logistics">Logistika menejeri</option>
           <option value="accounting">Buxgalteriya</option>
+          <option value="sales">Sotuv menejeri</option>
         </Select>
       </Field>
       <Field label="Vaqtinchalik parol" error={state.fieldErrors?.password}>

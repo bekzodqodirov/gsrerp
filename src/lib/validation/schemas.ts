@@ -5,6 +5,7 @@ export const clientSchema = z.object({
   name: z.string().trim().min(1, "Nomi majburiy"),
   phone: z.string().trim().optional(),
   notes: z.string().trim().optional(),
+  salesManagerId: z.string().trim().optional(),
 });
 
 export const locationSchema = z.object({
@@ -75,6 +76,6 @@ export const deliveryReconciliationSchema = z.object({
 export const userSchema = z.object({
   email: z.string().trim().email("Email noto'g'ri"),
   name: z.string().trim().min(1, "Ism majburiy"),
-  role: z.enum(["admin", "warehouse", "logistics", "accounting"]),
+  role: z.enum(["admin", "warehouse", "logistics", "accounting", "sales"]),
   password: z.string().min(6, "Kamida 6 belgi"),
 });

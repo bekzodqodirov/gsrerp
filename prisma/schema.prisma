@@ -15,6 +15,7 @@ enum UserRole {
   warehouse
   logistics
   accounting
+  sales
 }
 
 enum LocationType {
@@ -76,6 +77,7 @@ model User {
   loadingLines   LoadingLineItem[] @relation("LoadingLineCreatedBy")
   loadingCosts   LoadingCost[]    @relation("LoadingCostCreatedBy")
   auditLogs      AuditLog[]
+  assignedClients Client[]        @relation("ClientSalesManager")
 
   @@map("users")
 }
@@ -93,18 +95,21 @@ model GsCodeCounter {
 }
 
 model Client {
-  id           String   @id @default(cuid())
-  code         String   @unique
-  name         String
-  phone        String?
-  notes        String?
-  isActive     Boolean  @default(true)
-  portalUserId String?  @unique // future client-portal seam, unused in MVP
-  createdAt    DateTime @default(now())
+  id              String   @id @default(cuid())
+  code            String   @unique
+  name            String
+  phone           String?
+  notes           String?
+  isActive        Boolean  @default(true)
+  portalUserId    String?  @unique // future client-portal seam, unused in MVP
+  salesManager    User?    @relation("ClientSalesManager", fields: [salesManagerId], references: [id])
+  salesManagerId  String?
+  createdAt       DateTime @default(now())
 
   intakeBatches           IntakeBatch[]
   deliveryReconciliations DeliveryReconciliation[]
 
+  @@index([salesManagerId])
   @@map("clients")
 }
 

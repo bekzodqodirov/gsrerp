@@ -120,14 +120,14 @@ model IntakeBatch {
   intakeDate         DateTime
   productName        String?
   packingType        PackingType
-  lengthM            Decimal     @db.Decimal(8, 3)
-  widthM             Decimal     @db.Decimal(8, 3)
-  heightM            Decimal     @db.Decimal(8, 3)
+  lengthM            Decimal?    @db.Decimal(8, 3)
+  widthM             Decimal?    @db.Decimal(8, 3)
+  heightM            Decimal?    @db.Decimal(8, 3)
   packageCount       Int
   unitQty            Int?
   volumeCbm          Decimal     @db.Decimal(10, 3)
   unitGrossWeightKg  Decimal?    @db.Decimal(10, 2)
-  totalWeightKg      Decimal?    @db.Decimal(10, 2)
+  totalWeightKg      Decimal     @db.Decimal(10, 2)
   costNotes          String?
   status             BatchStatus @default(in_stock)
   createdBy          User        @relation("IntakeCreatedBy", fields: [createdById], references: [id])

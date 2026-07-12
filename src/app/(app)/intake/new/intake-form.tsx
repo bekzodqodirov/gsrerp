@@ -70,32 +70,41 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
       </Field>
 
       <div className="grid grid-cols-3 gap-4">
-        <Field label="Uzunlik (m)" error={state.fieldErrors?.lengthM}>
-          <Input type="number" step="0.001" name="lengthM" required />
-        </Field>
-        <Field label="Kenglik (m)" error={state.fieldErrors?.widthM}>
-          <Input type="number" step="0.001" name="widthM" required />
-        </Field>
-        <Field label="Balandlik (m)" error={state.fieldErrors?.heightM}>
-          <Input type="number" step="0.001" name="heightM" required />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <Field label="Joylar soni (件数)" error={state.fieldErrors?.packageCount}>
+        <Field label="Karobka soni" error={state.fieldErrors?.packageCount}>
           <Input type="number" step="1" name="packageCount" required />
         </Field>
-        <Field label="Dona miqdori (ixtiyoriy)" error={state.fieldErrors?.unitQty}>
-          <Input type="number" step="1" name="unitQty" />
+        <Field label="Kub, m³" error={state.fieldErrors?.volumeCbm}>
+          <Input type="number" step="0.001" name="volumeCbm" required />
         </Field>
-        <Field label="1 joy og'irligi, kg (ixtiyoriy)" error={state.fieldErrors?.unitGrossWeightKg}>
-          <Input type="number" step="0.01" name="unitGrossWeightKg" />
+        <Field label="Kilo, kg" error={state.fieldErrors?.totalWeightKg}>
+          <Input type="number" step="0.01" name="totalWeightKg" required />
         </Field>
       </div>
 
-      <p className="text-xs text-slate-500">
-        Hajm (m³) va umumiy og&apos;irlik avtomatik hisoblanadi: uzunlik × kenglik × balandlik × joylar soni.
-      </p>
+      <Field label="Dona miqdori (ixtiyoriy)" error={state.fieldErrors?.unitQty}>
+        <Input type="number" step="1" name="unitQty" />
+      </Field>
+
+      <details className="rounded-md border border-slate-200 p-3 text-sm">
+        <summary className="cursor-pointer select-none font-medium text-slate-700">
+          O&apos;lcham asosida kub hisoblash (ixtiyoriy)
+        </summary>
+        <div className="mt-3 grid grid-cols-3 gap-4">
+          <Field label="Uzunlik (m)" error={state.fieldErrors?.lengthM}>
+            <Input type="number" step="0.001" name="lengthM" />
+          </Field>
+          <Field label="Kenglik (m)" error={state.fieldErrors?.widthM}>
+            <Input type="number" step="0.001" name="widthM" />
+          </Field>
+          <Field label="Balandlik (m)" error={state.fieldErrors?.heightM}>
+            <Input type="number" step="0.001" name="heightM" />
+          </Field>
+        </div>
+        <p className="mt-2 text-xs text-slate-500">
+          Bu qiymatlar to&apos;ldirilsa, faqat ma&apos;lumot sifatida saqlanadi — Kub (m³) maydonini
+          uzunlik × kenglik × balandlik × karobka soniga qarab o&apos;zingiz yozing.
+        </p>
+      </details>
 
       <Field label="Xarajat/izoh (masalan: avtopogruzchik, soliq qaytarish)" error={state.fieldErrors?.costNotes}>
         <Textarea name="costNotes" rows={2} />

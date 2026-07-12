@@ -84,11 +84,11 @@ export function ImportClient({ locations }: { locations: Option[] }) {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
                 <tr>
-                  <th className="px-3 py-2">Mijoz kodi</th>
-                  <th className="px-3 py-2">O&apos;lcham (LxWxH)</th>
-                  <th className="px-3 py-2">Joylar</th>
+                  <th className="px-3 py-2">Mijoz kodi (GS kod)</th>
+                  <th className="px-3 py-2">Karobka soni</th>
+                  <th className="px-3 py-2">Kub, m³</th>
+                  <th className="px-3 py-2">Kilo, kg</th>
                   <th className="px-3 py-2">Mahsulot</th>
-                  <th className="px-3 py-2">Qadoq</th>
                   <th className="px-3 py-2">Sana</th>
                 </tr>
               </thead>
@@ -96,12 +96,10 @@ export function ImportClient({ locations }: { locations: Option[] }) {
                 {rows.slice(0, 20).map((r) => (
                   <tr key={r.rowIndex}>
                     <td className="px-3 py-2 font-medium text-slate-900">{r.clientCode}</td>
-                    <td className="px-3 py-2 text-slate-600">
-                      {r.lengthM}×{r.widthM}×{r.heightM}
-                    </td>
                     <td className="px-3 py-2 text-slate-600">{r.packageCount}</td>
+                    <td className="px-3 py-2 text-slate-600">{r.volumeCbm}</td>
+                    <td className="px-3 py-2 text-slate-600">{r.totalWeightKg ?? "-"}</td>
                     <td className="px-3 py-2 text-slate-600">{r.productName ?? "-"}</td>
-                    <td className="px-3 py-2 text-slate-600">{r.packingType}</td>
                     <td className="px-3 py-2 text-slate-600">{r.intakeDate ?? "-"}</td>
                   </tr>
                 ))}

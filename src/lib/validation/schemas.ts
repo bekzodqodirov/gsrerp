@@ -25,12 +25,13 @@ export const intakeBatchSchema = z.object({
   intakeDate: z.string().min(1, "Sana majburiy"),
   productName: z.string().trim().optional(),
   packingType: z.enum(["carton", "woven_bag", "pallet", "other"]),
-  lengthM: z.coerce.number().positive("Musbat son bo'lishi kerak"),
-  widthM: z.coerce.number().positive("Musbat son bo'lishi kerak"),
-  heightM: z.coerce.number().positive("Musbat son bo'lishi kerak"),
   packageCount: z.coerce.number().int().positive("Musbat butun son bo'lishi kerak"),
+  volumeCbm: z.coerce.number().positive("Musbat son bo'lishi kerak (Kub, m³)"),
+  totalWeightKg: z.coerce.number().positive("Musbat son bo'lishi kerak (Kilo, kg)"),
+  lengthM: z.coerce.number().positive().optional().or(z.literal(undefined)),
+  widthM: z.coerce.number().positive().optional().or(z.literal(undefined)),
+  heightM: z.coerce.number().positive().optional().or(z.literal(undefined)),
   unitQty: z.coerce.number().int().positive().optional().or(z.literal(undefined)),
-  unitGrossWeightKg: z.coerce.number().positive().optional().or(z.literal(undefined)),
   costNotes: z.string().trim().optional(),
 });
 

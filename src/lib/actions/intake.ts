@@ -14,9 +14,6 @@ export async function createIntakeBatch(_prev: ActionState, formData: FormData):
   if (parsed.error) return parsed.error;
   const d = parsed.data;
 
-  const volumeCbm = d.lengthM * d.widthM * d.heightM * d.packageCount;
-  const totalWeightKg = d.unitGrossWeightKg ? d.unitGrossWeightKg * d.packageCount : undefined;
-
   await prisma.intakeBatch.create({
     data: {
       clientId: d.clientId,
@@ -29,9 +26,8 @@ export async function createIntakeBatch(_prev: ActionState, formData: FormData):
       heightM: d.heightM,
       packageCount: d.packageCount,
       unitQty: d.unitQty,
-      volumeCbm,
-      unitGrossWeightKg: d.unitGrossWeightKg,
-      totalWeightKg,
+      volumeCbm: d.volumeCbm,
+      totalWeightKg: d.totalWeightKg,
       costNotes: d.costNotes,
       createdById: session.user.id,
     },

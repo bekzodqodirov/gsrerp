@@ -27,9 +27,7 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
   for (const row of rows) {
     const client = clientByCode.get(row.clientCode);
     if (!client) continue;
-
-    const volumeCbm = row.lengthM * row.widthM * row.heightM * row.packageCount;
-    const totalWeightKg = row.unitGrossWeightKg ? row.unitGrossWeightKg * row.packageCount : undefined;
+    if (!row.totalWeightKg) continue; // og'irlik bo'lmasa, kirim yaratilmaydi
 
     await prisma.intakeBatch.create({
       data: {
@@ -43,9 +41,8 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
         heightM: row.heightM,
         packageCount: row.packageCount,
         unitQty: row.unitQty,
-        volumeCbm,
-        unitGrossWeightKg: row.unitGrossWeightKg,
-        totalWeightKg,
+        volumeCbm: row.volumeCbm,
+        totalWeightKg: row.totalWeightKg,
         costNotes: row.costNotes,
         createdById: session.user.id,
       },

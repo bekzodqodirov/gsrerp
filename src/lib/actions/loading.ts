@@ -34,11 +34,16 @@ export async function createLoadingEvent(_prev: ActionState, formData: FormData)
   redirect(`/loading/${event.id}`);
 }
 
+// A batch can move through several hops (China -> Qashqar -> Toshkent), each its own
+// LoadingEvent. Only line items whose event departs FROM the batch's current location
+// count toward "loaded on this leg" — earlier hops' line items no longer apply once the
+// batch has physically arrived somewhere new, so it becomes fully available again there.
 async function recomputeBatchStatus(intakeBatchId: string) {
-  const [batch, lines] = await Promise.all([
-    prisma.intakeBatch.findUniqueOrThrow({ where: { id: intakeBatchId } }),
-    prisma.loadingLineItem.findMany({ where: { intakeBatchId }, select: { packageCountLoaded: true } }),
-  ]);
+  const batch = await prisma.intakeBatch.findUniqueOrThrow({ where: { id: intakeBatchId } });
+  const lines = await prisma.loadingLineItem.findMany({
+    where: { intakeBatchId, loadingEvent: { fromLocationId: batch.currentLocationId } },
+    select: { packageCountLoaded: true },
+  });
   const loaded = lines.reduce((sum, l) => sum + l.packageCountLoaded, 0);
   const status = loaded <= 0 ? "in_stock" : loaded >= batch.packageCount ? "fully_loaded" : "partially_loaded";
   await prisma.intakeBatch.update({ where: { id: intakeBatchId }, data: { status } });
@@ -56,11 +61,13 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
 
   const batch = await prisma.intakeBatch.findUnique({
     where: { id: d.intakeBatchId },
-    include: { loadingLines: true },
+    include: { loadingLines: { include: { loadingEvent: { select: { fromLocationId: true } } } } },
   });
   if (!batch) return { error: "Partiya topilmadi" };
 
-  const alreadyLoaded = batch.loadingLines.reduce((sum, l) => sum + l.packageCountLoaded, 0);
+  const alreadyLoaded = batch.loadingLines
+    .filter((l) => l.loadingEvent.fromLocationId === batch.currentLocationId)
+    .reduce((sum, l) => sum + l.packageCountLoaded, 0);
   const remaining = batch.packageCount - alreadyLoaded;
 
   if (d.packageCountLoaded > 0 && d.packageCountLoaded > remaining) {
@@ -109,8 +116,41 @@ export async function updateLoadingEventStatus(loadingEventId: string, status: "
     });
   }
 
+  const lines = await prisma.loadingLineItem.findMany({
+    where: { loadingEventId },
+    select: { intakeBatchId: true },
+    distinct: ["intakeBatchId"],
+  });
+  const intakeBatchIds = lines.map((l) => l.intakeBatchId);
+
+  if (intakeBatchIds.length > 0) {
+    if (status === "departed") {
+      await prisma.intakeBatch.updateMany({
+        where: { id: { in: intakeBatchIds } },
+        data: { inTransit: true, currentLocationId: event.fromLocationId },
+      });
+    } else if ((status === "arrived" || status === "cleared") && event.toLocationId) {
+      await prisma.intakeBatch.updateMany({
+        where: { id: { in: intakeBatchIds } },
+        data: { inTransit: false, currentLocationId: event.toLocationId },
+      });
+      // Batch just arrived at a new location — its "loaded" ledger was scoped to the leg
+      // it just finished, so status must be recomputed against the new currentLocationId
+      // (otherwise it stays "fully_loaded" forever and can never be allocated to the next hop).
+      await Promise.all(intakeBatchIds.map((id) => recomputeBatchStatus(id)));
+    } else if (status === "loading") {
+      await prisma.intakeBatch.updateMany({
+        where: { id: { in: intakeBatchIds } },
+        data: { inTransit: false, currentLocationId: event.fromLocationId },
+      });
+    }
+  }
+
   revalidatePath(`/loading/${loadingEventId}`);
   revalidatePath("/trucks");
+  revalidatePath("/stock");
+  revalidatePath("/intake");
+  revalidatePath("/dashboard");
 }
 
 export async function addTransitCheckpoint(loadingEventId: string, formData: FormData) {

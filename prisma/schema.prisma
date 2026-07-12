@@ -102,7 +102,8 @@ model Location {
   type    LocationType
   country String
 
-  intakeBatches       IntakeBatch[]
+  intakeBatches         IntakeBatch[]
+  intakeBatchesCurrent  IntakeBatch[]        @relation("IntakeCurrentLocation")
   trucksHere          Truck[]              @relation("TruckCurrentLocation")
   loadingEventsFrom    LoadingEvent[]       @relation("LoadingEventFrom")
   loadingEventsTo      LoadingEvent[]       @relation("LoadingEventTo")
@@ -130,6 +131,9 @@ model IntakeBatch {
   totalWeightKg      Decimal     @db.Decimal(10, 2)
   costNotes          String?
   status             BatchStatus @default(in_stock)
+  currentLocation    Location    @relation("IntakeCurrentLocation", fields: [currentLocationId], references: [id])
+  currentLocationId  String
+  inTransit          Boolean     @default(false)
   createdBy          User        @relation("IntakeCreatedBy", fields: [createdById], references: [id])
   createdById        String
   createdAt          DateTime    @default(now())
@@ -139,6 +143,7 @@ model IntakeBatch {
   @@index([clientId])
   @@index([locationId])
   @@index([status])
+  @@index([currentLocationId])
   @@map("intake_batches")
 }
 

@@ -18,6 +18,7 @@ export async function createIntakeBatch(_prev: ActionState, formData: FormData):
     data: {
       clientId: d.clientId,
       locationId: d.locationId,
+      currentLocationId: d.locationId,
       intakeDate: new Date(d.intakeDate),
       productName: d.productName,
       packingType: d.packingType,

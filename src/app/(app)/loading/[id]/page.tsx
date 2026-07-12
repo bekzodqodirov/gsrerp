@@ -51,14 +51,16 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
 
   const availableBatchesRaw = await prisma.intakeBatch.findMany({
     where: {
-      locationId: event.fromLocationId,
+      currentLocationId: event.fromLocationId,
       status: { in: ["in_stock", "partially_loaded"] },
     },
-    include: { client: true, loadingLines: true },
+    include: { client: true, loadingLines: { include: { loadingEvent: { select: { fromLocationId: true } } } } },
   });
   const availableBatches = availableBatchesRaw
     .map((b) => {
-      const loaded = b.loadingLines.reduce((sum, l) => sum + l.packageCountLoaded, 0);
+      const loaded = b.loadingLines
+        .filter((l) => l.loadingEvent.fromLocationId === b.currentLocationId)
+        .reduce((sum, l) => sum + l.packageCountLoaded, 0);
       return { id: b.id, label: `${b.client.code} — ${b.productName ?? ""}`.trim(), remaining: b.packageCount - loaded };
     })
     .filter((b) => b.remaining > 0);

@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db/prisma";
 import { requireSession } from "@/lib/auth/guards";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/input";
+import { stageLabel, stageTone } from "@/lib/stage-label";
 
 const PACKING_LABEL: Record<string, string> = {
   carton: "Karton",
@@ -23,17 +25,23 @@ export default async function StockPage({
       where: {
         status: { in: ["in_stock", "partially_loaded"] },
         clientId: clientId || undefined,
-        locationId: locationId || undefined,
+        currentLocationId: locationId || undefined,
       },
       orderBy: { intakeDate: "asc" },
-      include: { client: true, location: true, loadingLines: true },
+      include: {
+        client: true,
+        currentLocation: true,
+        loadingLines: { include: { loadingEvent: { select: { fromLocationId: true } } } },
+      },
     }),
     prisma.client.findMany({ orderBy: { code: "asc" }, select: { id: true, code: true } }),
-    prisma.location.findMany({ where: { type: "warehouse" }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.location.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   const rows = batches.map((b) => {
-    const loaded = b.loadingLines.reduce((sum, l) => sum + l.packageCountLoaded, 0);
+    const loaded = b.loadingLines
+      .filter((l) => l.loadingEvent.fromLocationId === b.currentLocationId)
+      .reduce((sum, l) => sum + l.packageCountLoaded, 0);
     return { ...b, remaining: b.packageCount - loaded };
   });
 
@@ -74,7 +82,7 @@ export default async function StockPage({
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-2">Mijoz</th>
-                <th className="px-4 py-2">Joylashuv</th>
+                <th className="px-4 py-2">Holat</th>
                 <th className="px-4 py-2">Kirim sanasi</th>
                 <th className="px-4 py-2">Mahsulot</th>
                 <th className="px-4 py-2">Qadoq</th>
@@ -93,7 +101,11 @@ export default async function StockPage({
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td className="px-4 py-2 font-medium text-slate-900">{r.client.code}</td>
-                  <td className="px-4 py-2 text-slate-600">{r.location.name}</td>
+                  <td className="px-4 py-2">
+                    <Badge tone={stageTone(r.currentLocation, r.inTransit)}>
+                      {stageLabel(r.currentLocation, r.inTransit)}
+                    </Badge>
+                  </td>
                   <td className="px-4 py-2 text-slate-600">{r.intakeDate.toLocaleDateString("uz-UZ")}</td>
                   <td className="px-4 py-2 text-slate-600">{r.productName ?? "-"}</td>
                   <td className="px-4 py-2 text-slate-600">{PACKING_LABEL[r.packingType]}</td>

@@ -33,6 +33,7 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
       data: {
         clientId: client.id,
         locationId,
+        currentLocationId: locationId,
         intakeDate: row.intakeDate ? new Date(row.intakeDate) : new Date(),
         productName: row.productName,
         packingType: row.packingType,

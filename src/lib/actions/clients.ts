@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { clientSchema } from "@/lib/validation/schemas";
 import { parseOrError, formDataToObject, ActionState } from "@/lib/actions/action-state";
+import { advanceCounterIfUsed } from "@/lib/actions/gs-code";
 
 export async function createClient(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireRole(["admin", "warehouse", "logistics"]);
@@ -19,6 +20,7 @@ export async function createClient(_prev: ActionState, formData: FormData): Prom
   }
 
   await prisma.client.create({ data: parsed.data });
+  await advanceCounterIfUsed(parsed.data.code);
   revalidatePath("/clients");
   redirect("/clients");
 }

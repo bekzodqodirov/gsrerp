@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import type { ParsedIntakeRow } from "@/lib/import/excel-mapper";
+import { advanceCounterIfUsed } from "@/lib/actions/gs-code";
 
 export async function importIntakeBatches(locationId: string, rows: ParsedIntakeRow[]) {
   const session = await requireRole(["admin", "warehouse"]);
@@ -20,6 +21,7 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
     if (!clientByCode.has(code)) {
       const created = await prisma.client.create({ data: { code, name: code } });
       clientByCode.set(code, created);
+      await advanceCounterIfUsed(code);
     }
   }
 

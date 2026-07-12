@@ -3,24 +3,51 @@ import { prisma } from "@/lib/db/prisma";
 import { requireSession } from "@/lib/auth/guards";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GsCodeSettingsForm } from "./gs-code-settings-form";
 
 export default async function ClientsPage() {
   const session = await requireSession();
   const canManage = ["admin", "warehouse", "logistics"].includes(session.user.role);
+  const isAdmin = session.user.role === "admin";
 
-  const clients = await prisma.client.findMany({ orderBy: { code: "asc" } });
+  const [clients, counter] = await Promise.all([
+    prisma.client.findMany({ orderBy: { code: "asc" } }),
+    canManage ? prisma.gsCodeCounter.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }) : null,
+  ]);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-slate-900">Mijozlar</h1>
-        {canManage && (
-          <Link href="/clients/new">
-            <Button>+ Yangi mijoz</Button>
-          </Link>
-        )}
+        <div className="flex items-center gap-3">
+          {counter && (
+            <span className="text-sm text-slate-500">
+              Keyingi kod: <span className="font-medium text-slate-700">{counter.prefix}{counter.nextValue}</span>
+            </span>
+          )}
+          {canManage && (
+            <Link href="/clients/new">
+              <Button>+ Yangi mijoz</Button>
+            </Link>
+          )}
+        </div>
       </div>
+
+      {isAdmin && counter && (
+        <Card>
+          <CardHeader>
+            <CardTitle>GS-kod ketma-ketligi</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <GsCodeSettingsForm prefix={counter.prefix} nextValue={counter.nextValue} />
+            <p className="mt-2 text-xs text-slate-500">
+              Yangi mijoz qo&apos;shishda shu raqam taklif qilinadi. Faqat taklif qilingan kod ishlatilganda
+              avtomatik oshadi — maxsus kod yozilsa o&apos;zgarmaydi.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">

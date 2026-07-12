@@ -80,6 +80,18 @@ model User {
   @@map("users")
 }
 
+// Single row (id=1) holding the next auto-suggested client code (e.g. "GS425"). Sales
+// managers can still type any custom code (special/round codes like GS777, GS5909) —
+// the counter only advances when the suggested value is actually used, so overriding it
+// never skips or collides with the sequence.
+model GsCodeCounter {
+  id        Int    @id @default(1)
+  prefix    String @default("GS")
+  nextValue Int    @default(1)
+
+  @@map("gs_code_counter")
+}
+
 model Client {
   id           String   @id @default(cuid())
   code         String   @unique

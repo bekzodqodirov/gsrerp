@@ -4,35 +4,61 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
-import { intakeBatchSchema } from "@/lib/validation/schemas";
-import { parseOrError, formDataToObject, ActionState } from "@/lib/actions/action-state";
+import { intakeBatchBulkSchema } from "@/lib/validation/schemas";
+import { ActionState } from "@/lib/actions/action-state";
 
-export async function createIntakeBatch(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function createIntakeBatchesBulk(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const session = await requireRole(["admin", "warehouse"]);
 
-  const parsed = parseOrError(intakeBatchSchema, formDataToObject(formData));
-  if (parsed.error) return parsed.error;
+  let lines: unknown;
+  try {
+    lines = JSON.parse(String(formData.get("linesJson") ?? "[]"));
+  } catch {
+    return { error: "Qatorlar formati noto'g'ri" };
+  }
+
+  const parsed = intakeBatchBulkSchema.safeParse({
+    clientId: formData.get("clientId"),
+    locationId: formData.get("locationId"),
+    intakeDate: formData.get("intakeDate"),
+    packingType: formData.get("packingType"),
+    lines,
+  });
+
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path.join(".") || "_form";
+      if (!fieldErrors[key]) fieldErrors[key] = issue.message;
+    }
+    return { error: "Ma'lumotlarni tekshiring", fieldErrors };
+  }
+
   const d = parsed.data;
 
-  await prisma.intakeBatch.create({
-    data: {
-      clientId: d.clientId,
-      locationId: d.locationId,
-      currentLocationId: d.locationId,
-      intakeDate: new Date(d.intakeDate),
-      productName: d.productName,
-      packingType: d.packingType,
-      lengthM: d.lengthM,
-      widthM: d.widthM,
-      heightM: d.heightM,
-      packageCount: d.packageCount,
-      unitQty: d.unitQty,
-      volumeCbm: d.volumeCbm,
-      totalWeightKg: d.totalWeightKg,
-      costNotes: d.costNotes,
-      createdById: session.user.id,
-    },
-  });
+  await prisma.$transaction(
+    d.lines.map((line) =>
+      prisma.intakeBatch.create({
+        data: {
+          clientId: d.clientId,
+          locationId: d.locationId,
+          currentLocationId: d.locationId,
+          intakeDate: new Date(d.intakeDate),
+          productName: line.productName,
+          packingType: d.packingType,
+          lengthM: line.lengthM,
+          widthM: line.widthM,
+          heightM: line.heightM,
+          packageCount: line.packageCount,
+          unitQty: line.unitQty,
+          volumeCbm: line.volumeCbm,
+          totalWeightKg: line.totalWeightKg,
+          costNotes: line.costNotes,
+          createdById: session.user.id,
+        },
+      })
+    )
+  );
 
   revalidatePath("/intake");
   revalidatePath("/stock");

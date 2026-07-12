@@ -19,19 +19,28 @@ export const truckSchema = z.object({
   currentLocationId: z.string().trim().optional(),
 });
 
-export const intakeBatchSchema = z.object({
+// One warehouse delivery (bitta GS-kod + bitta sana) often contains several different
+// product lines (10-40 xil karobka/tovar turi) arriving together — each line becomes
+// its own IntakeBatch row, sharing the client/location/date entered once at the top.
+export const intakeBatchLineSchema = z.object({
+  productName: z.string().trim().optional(),
+  packageCount: z.coerce.number().int().positive("Karobka soni musbat butun son bo'lishi kerak"),
+  volumeCbm: z.coerce.number().positive("Kub musbat son bo'lishi kerak"),
+  totalWeightKg: z.coerce.number().positive("Kilo musbat son bo'lishi kerak"),
+  lengthM: z.coerce.number().positive().optional().or(z.literal(undefined)),
+  widthM: z.coerce.number().positive().optional().or(z.literal(undefined)),
+  heightM: z.coerce.number().positive().optional().or(z.literal(undefined)),
+  unitGrossWeightKg: z.coerce.number().positive().optional().or(z.literal(undefined)),
+  unitQty: z.coerce.number().int().positive().optional().or(z.literal(undefined)),
+  costNotes: z.string().trim().optional(),
+});
+
+export const intakeBatchBulkSchema = z.object({
   clientId: z.string().min(1, "Mijoz tanlanmagan"),
   locationId: z.string().min(1, "Joylashuv tanlanmagan"),
   intakeDate: z.string().min(1, "Sana majburiy"),
-  productName: z.string().trim().optional(),
   packingType: z.enum(["carton", "woven_bag", "pallet", "other"]),
-  lengthM: z.coerce.number().positive("Musbat son bo'lishi kerak"),
-  widthM: z.coerce.number().positive("Musbat son bo'lishi kerak"),
-  heightM: z.coerce.number().positive("Musbat son bo'lishi kerak"),
-  packageCount: z.coerce.number().int().positive("Musbat butun son bo'lishi kerak"),
-  unitQty: z.coerce.number().int().positive().optional().or(z.literal(undefined)),
-  unitGrossWeightKg: z.coerce.number().positive().optional().or(z.literal(undefined)),
-  costNotes: z.string().trim().optional(),
+  lines: z.array(intakeBatchLineSchema).min(1, "Kamida bitta qator bo'lishi kerak"),
 });
 
 export const loadingEventSchema = z.object({

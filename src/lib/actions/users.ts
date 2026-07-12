@@ -7,9 +7,10 @@ import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { userSchema } from "@/lib/validation/schemas";
 import { parseOrError, formDataToObject, ActionState } from "@/lib/actions/action-state";
+import { logAudit } from "@/lib/audit/log";
 
 export async function createUser(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireRole(["admin"]);
+  const session = await requireRole(["admin"]);
 
   const parsed = parseOrError(userSchema, formDataToObject(formData));
   if (parsed.error) return parsed.error;
@@ -21,8 +22,15 @@ export async function createUser(_prev: ActionState, formData: FormData): Promis
   }
 
   const passwordHash = await bcrypt.hash(d.password, 10);
-  await prisma.user.create({
+  const user = await prisma.user.create({
     data: { email: d.email, name: d.name, role: d.role, passwordHash },
+  });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "users",
+    recordId: user.id,
+    action: "create",
+    diff: { email: user.email, name: user.name, role: user.role },
   });
 
   revalidatePath("/users");
@@ -30,7 +38,13 @@ export async function createUser(_prev: ActionState, formData: FormData): Promis
 }
 
 export async function toggleUserActive(id: string, isActive: boolean) {
-  await requireRole(["admin"]);
+  const session = await requireRole(["admin"]);
   await prisma.user.update({ where: { id }, data: { isActive } });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "users",
+    recordId: id,
+    action: isActive ? "activate" : "deactivate",
+  });
   revalidatePath("/users");
 }

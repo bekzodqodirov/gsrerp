@@ -8,17 +8,24 @@ export default async function ReportsPage() {
   const clients = await prisma.client.findMany({
     orderBy: { code: "asc" },
     include: {
-      intakeBatches: { include: { loadingLines: true } },
+      intakeBatches: {
+        include: { loadingLines: { include: { loadingEvent: { select: { fromLocationId: true } } } } },
+      },
       deliveryReconciliations: true,
     },
   });
 
+  // "Yuklangan" — joriy bosqichda (batch hozir turgan joydan) jo'natilgan miqdor. Bir partiya
+  // bir necha bosqichdan (Xitoy -> Qashqar -> Toshkent) o'tishi mumkin; faqat oxirgi bosqichdagi
+  // harakat hisoblanadi, aks holda bir xil yuk bir necha marta hisoblanib ketardi.
   const ledger = clients.map((c) => {
     const intake = c.intakeBatches.reduce((sum, b) => sum + b.packageCount, 0);
-    const loaded = c.intakeBatches.reduce(
-      (sum, b) => sum + b.loadingLines.reduce((s, l) => s + l.packageCountLoaded, 0),
-      0
-    );
+    const loaded = c.intakeBatches.reduce((sum, b) => {
+      const loadedOnCurrentLeg = b.loadingLines
+        .filter((l) => l.loadingEvent.fromLocationId === b.currentLocationId)
+        .reduce((s, l) => s + l.packageCountLoaded, 0);
+      return sum + loadedOnCurrentLeg;
+    }, 0);
     const delivered = c.deliveryReconciliations
       .filter((r) => r.status === "confirmed")
       .reduce((sum, r) => sum + (r.confirmedPackageCount ?? 0), 0);

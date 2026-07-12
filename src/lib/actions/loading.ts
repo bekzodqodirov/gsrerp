@@ -10,6 +10,7 @@ import {
   loadingCostSchema,
 } from "@/lib/validation/schemas";
 import { parseOrError, formDataToObject, ActionState } from "@/lib/actions/action-state";
+import { logAudit } from "@/lib/audit/log";
 
 export async function createLoadingEvent(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const session = await requireRole(["admin", "logistics"]);
@@ -29,16 +30,28 @@ export async function createLoadingEvent(_prev: ActionState, formData: FormData)
   });
 
   await prisma.truck.update({ where: { id: d.truckId }, data: { status: "loading" } });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_events",
+    recordId: event.id,
+    action: "create",
+    diff: { truckId: d.truckId, fromLocationId: d.fromLocationId, toLocationId: d.toLocationId },
+  });
 
   revalidatePath("/loading");
   redirect(`/loading/${event.id}`);
 }
 
+// A batch can move through several hops (China -> Qashqar -> Toshkent), each its own
+// LoadingEvent. Only line items whose event departs FROM the batch's current location
+// count toward "loaded on this leg" — earlier hops' line items no longer apply once the
+// batch has physically arrived somewhere new, so it becomes fully available again there.
 async function recomputeBatchStatus(intakeBatchId: string) {
-  const [batch, lines] = await Promise.all([
-    prisma.intakeBatch.findUniqueOrThrow({ where: { id: intakeBatchId } }),
-    prisma.loadingLineItem.findMany({ where: { intakeBatchId }, select: { packageCountLoaded: true } }),
-  ]);
+  const batch = await prisma.intakeBatch.findUniqueOrThrow({ where: { id: intakeBatchId } });
+  const lines = await prisma.loadingLineItem.findMany({
+    where: { intakeBatchId, loadingEvent: { fromLocationId: batch.currentLocationId } },
+    select: { packageCountLoaded: true },
+  });
   const loaded = lines.reduce((sum, l) => sum + l.packageCountLoaded, 0);
   const status = loaded <= 0 ? "in_stock" : loaded >= batch.packageCount ? "fully_loaded" : "partially_loaded";
   await prisma.intakeBatch.update({ where: { id: intakeBatchId }, data: { status } });
@@ -56,11 +69,13 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
 
   const batch = await prisma.intakeBatch.findUnique({
     where: { id: d.intakeBatchId },
-    include: { loadingLines: true },
+    include: { loadingLines: { include: { loadingEvent: { select: { fromLocationId: true } } } } },
   });
   if (!batch) return { error: "Partiya topilmadi" };
 
-  const alreadyLoaded = batch.loadingLines.reduce((sum, l) => sum + l.packageCountLoaded, 0);
+  const alreadyLoaded = batch.loadingLines
+    .filter((l) => l.loadingEvent.fromLocationId === batch.currentLocationId)
+    .reduce((sum, l) => sum + l.packageCountLoaded, 0);
   const remaining = batch.packageCount - alreadyLoaded;
 
   if (d.packageCountLoaded > 0 && d.packageCountLoaded > remaining) {
@@ -73,7 +88,7 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
     return { error: "Manfiy tuzatish yuklangan miqdordan oshib ketdi" };
   }
 
-  await prisma.loadingLineItem.create({
+  const line = await prisma.loadingLineItem.create({
     data: {
       loadingEventId,
       intakeBatchId: d.intakeBatchId,
@@ -84,6 +99,13 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
   });
 
   await recomputeBatchStatus(d.intakeBatchId);
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_line_items",
+    recordId: line.id,
+    action: "create",
+    diff: { intakeBatchId: d.intakeBatchId, packageCountLoaded: d.packageCountLoaded, note: d.note },
+  });
 
   revalidatePath(`/loading/${loadingEventId}`);
   revalidatePath("/stock");
@@ -92,7 +114,7 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
 }
 
 export async function updateLoadingEventStatus(loadingEventId: string, status: "loading" | "departed" | "arrived" | "cleared") {
-  await requireRole(["admin", "logistics"]);
+  const session = await requireRole(["admin", "logistics"]);
 
   const event = await prisma.loadingEvent.update({
     where: { id: loadingEventId },
@@ -109,19 +131,67 @@ export async function updateLoadingEventStatus(loadingEventId: string, status: "
     });
   }
 
+  const lines = await prisma.loadingLineItem.findMany({
+    where: { loadingEventId },
+    select: { intakeBatchId: true },
+    distinct: ["intakeBatchId"],
+  });
+  const intakeBatchIds = lines.map((l) => l.intakeBatchId);
+
+  if (intakeBatchIds.length > 0) {
+    if (status === "departed") {
+      await prisma.intakeBatch.updateMany({
+        where: { id: { in: intakeBatchIds } },
+        data: { inTransit: true, currentLocationId: event.fromLocationId },
+      });
+    } else if ((status === "arrived" || status === "cleared") && event.toLocationId) {
+      await prisma.intakeBatch.updateMany({
+        where: { id: { in: intakeBatchIds } },
+        data: { inTransit: false, currentLocationId: event.toLocationId },
+      });
+      // Batch just arrived at a new location — its "loaded" ledger was scoped to the leg
+      // it just finished, so status must be recomputed against the new currentLocationId
+      // (otherwise it stays "fully_loaded" forever and can never be allocated to the next hop).
+      await Promise.all(intakeBatchIds.map((id) => recomputeBatchStatus(id)));
+    } else if (status === "loading") {
+      await prisma.intakeBatch.updateMany({
+        where: { id: { in: intakeBatchIds } },
+        data: { inTransit: false, currentLocationId: event.fromLocationId },
+      });
+    }
+  }
+
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_events",
+    recordId: loadingEventId,
+    action: "status_change",
+    diff: { status },
+  });
+
   revalidatePath(`/loading/${loadingEventId}`);
   revalidatePath("/trucks");
+  revalidatePath("/stock");
+  revalidatePath("/intake");
+  revalidatePath("/dashboard");
 }
 
 export async function addTransitCheckpoint(loadingEventId: string, formData: FormData) {
-  await requireRole(["admin", "logistics"]);
+  const session = await requireRole(["admin", "logistics"]);
 
   const locationId = String(formData.get("locationId") ?? "");
   const note = String(formData.get("note") ?? "").trim() || undefined;
   if (!locationId) return;
 
-  await prisma.transitCheckpoint.create({
+  const checkpoint = await prisma.transitCheckpoint.create({
     data: { loadingEventId, locationId, arrivedAt: new Date(), note },
+  });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "transit_checkpoints",
+    recordId: checkpoint.id,
+    action: "create",
+    diff: { locationId, note },
   });
 
   revalidatePath(`/loading/${loadingEventId}`);
@@ -134,7 +204,7 @@ export async function addLoadingCost(_prev: ActionState, formData: FormData): Pr
   if (parsed.error) return parsed.error;
   const d = parsed.data;
 
-  await prisma.loadingCost.create({
+  const cost = await prisma.loadingCost.create({
     data: {
       loadingEventId: d.loadingEventId,
       costType: d.costType,
@@ -142,6 +212,13 @@ export async function addLoadingCost(_prev: ActionState, formData: FormData): Pr
       notes: d.notes,
       createdById: session.user.id,
     },
+  });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_costs",
+    recordId: cost.id,
+    action: "create",
+    diff: { costType: d.costType, amountCny: d.amountCny.toString(), notes: d.notes },
   });
 
   revalidatePath(`/loading/${d.loadingEventId}`);

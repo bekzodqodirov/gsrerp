@@ -6,9 +6,10 @@ import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { deliveryReconciliationSchema } from "@/lib/validation/schemas";
 import { parseOrError, formDataToObject, ActionState } from "@/lib/actions/action-state";
+import { logAudit } from "@/lib/audit/log";
 
 export async function createDeliveryReconciliation(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireRole(["admin", "logistics", "accounting"]);
+  const session = await requireRole(["admin", "logistics", "accounting"]);
 
   const parsed = parseOrError(deliveryReconciliationSchema, formDataToObject(formData));
   if (parsed.error) return parsed.error;
@@ -21,7 +22,7 @@ export async function createDeliveryReconciliation(_prev: ActionState, formData:
       ? "confirmed"
       : "discrepancy";
 
-  await prisma.deliveryReconciliation.create({
+  const recon = await prisma.deliveryReconciliation.create({
     data: {
       clientId: d.clientId,
       reconDate: new Date(d.reconDate),
@@ -31,13 +32,20 @@ export async function createDeliveryReconciliation(_prev: ActionState, formData:
       status,
     },
   });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "delivery_reconciliations",
+    recordId: recon.id,
+    action: "create",
+    diff: { expectedPackageCount: d.expectedPackageCount, confirmedPackageCount: d.confirmedPackageCount, status },
+  });
 
   revalidatePath("/delivery");
   redirect("/delivery");
 }
 
 export async function confirmDeliveryReconciliation(id: string, formData: FormData) {
-  await requireRole(["admin", "logistics", "accounting"]);
+  const session = await requireRole(["admin", "logistics", "accounting"]);
 
   const confirmedRaw = formData.get("confirmedPackageCount");
   const confirmedPackageCount = confirmedRaw ? Number(confirmedRaw) : undefined;
@@ -49,6 +57,13 @@ export async function confirmDeliveryReconciliation(id: string, formData: FormDa
   await prisma.deliveryReconciliation.update({
     where: { id },
     data: { confirmedPackageCount, status },
+  });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "delivery_reconciliations",
+    recordId: id,
+    action: "confirm",
+    diff: { confirmedPackageCount, status },
   });
 
   revalidatePath("/delivery");

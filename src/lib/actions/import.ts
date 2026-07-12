@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import type { ParsedIntakeRow } from "@/lib/import/excel-mapper";
+import { advanceCounterIfUsed } from "@/lib/actions/gs-code";
+import { logAudit } from "@/lib/audit/log";
 
 export async function importIntakeBatches(locationId: string, rows: ParsedIntakeRow[]) {
   const session = await requireRole(["admin", "warehouse"]);
@@ -20,6 +22,14 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
     if (!clientByCode.has(code)) {
       const created = await prisma.client.create({ data: { code, name: code } });
       clientByCode.set(code, created);
+      await advanceCounterIfUsed(code);
+      await logAudit({
+        userId: session.user.id,
+        tableName: "clients",
+        recordId: created.id,
+        action: "create_from_import",
+        diff: { code: created.code },
+      });
     }
   }
 
@@ -27,14 +37,13 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
   for (const row of rows) {
     const client = clientByCode.get(row.clientCode);
     if (!client) continue;
+    if (!row.totalWeightKg) continue; // og'irlik bo'lmasa, kirim yaratilmaydi
 
-    const volumeCbm = row.lengthM * row.widthM * row.heightM * row.packageCount;
-    const totalWeightKg = row.unitGrossWeightKg ? row.unitGrossWeightKg * row.packageCount : undefined;
-
-    await prisma.intakeBatch.create({
+    const batch = await prisma.intakeBatch.create({
       data: {
         clientId: client.id,
         locationId,
+        currentLocationId: locationId,
         intakeDate: row.intakeDate ? new Date(row.intakeDate) : new Date(),
         productName: row.productName,
         packingType: row.packingType,
@@ -43,12 +52,18 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
         heightM: row.heightM,
         packageCount: row.packageCount,
         unitQty: row.unitQty,
-        volumeCbm,
-        unitGrossWeightKg: row.unitGrossWeightKg,
-        totalWeightKg,
+        volumeCbm: row.volumeCbm,
+        totalWeightKg: row.totalWeightKg,
         costNotes: row.costNotes,
         createdById: session.user.id,
       },
+    });
+    await logAudit({
+      userId: session.user.id,
+      tableName: "intake_batches",
+      recordId: batch.id,
+      action: "create_from_import",
+      diff: { clientCode: client.code, packageCount: batch.packageCount, volumeCbm: batch.volumeCbm.toString() },
     });
     imported++;
   }

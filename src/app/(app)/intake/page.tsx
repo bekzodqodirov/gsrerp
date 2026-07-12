@@ -4,18 +4,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-
-const STATUS_TONE: Record<string, "amber" | "blue" | "green"> = {
-  in_stock: "green",
-  partially_loaded: "amber",
-  fully_loaded: "blue",
-};
-
-const STATUS_LABEL: Record<string, string> = {
-  in_stock: "Omborda",
-  partially_loaded: "Qisman yuklangan",
-  fully_loaded: "To'liq yuklangan",
-};
+import { stageLabel, stageTone } from "@/lib/stage-label";
 
 const PACKING_LABEL: Record<string, string> = {
   carton: "Karton",
@@ -30,7 +19,7 @@ export default async function IntakePage() {
   const batches = await prisma.intakeBatch.findMany({
     orderBy: { createdAt: "desc" },
     take: 100,
-    include: { client: true, location: true },
+    include: { client: true, location: true, currentLocation: true },
   });
 
   return (
@@ -79,7 +68,9 @@ export default async function IntakePage() {
                     {b.totalWeightKg ? Number(b.totalWeightKg).toFixed(1) : "-"}
                   </td>
                   <td className="px-4 py-2">
-                    <Badge tone={STATUS_TONE[b.status]}>{STATUS_LABEL[b.status]}</Badge>
+                    <Badge tone={stageTone(b.currentLocation, b.inTransit)}>
+                      {stageLabel(b.currentLocation, b.inTransit)}
+                    </Badge>
                   </td>
                 </tr>
               ))}

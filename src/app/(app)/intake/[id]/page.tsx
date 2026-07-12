@@ -56,47 +56,50 @@ export default async function IntakeBatchPage({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Partiya yorlig&apos;i — {batch.client.code}
-            {batch.letterCode && (
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">
-                {batch.letterCode}
-              </span>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4 py-6 sm:flex-row sm:items-start sm:gap-8">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={qrDataUrl} alt="QR kod" className="h-52 w-52 shrink-0 rounded-lg border border-slate-200 p-2" />
-          <div className="w-full space-y-2 text-sm">
-            <div className="flex items-center gap-2 text-2xl font-bold tracking-tight text-slate-900">
-              {batch.client.code}
-              {batch.letterCode && <span className="text-lg text-accent">· {batch.letterCode}</span>}
-            </div>
-            <div className="text-slate-600">{batch.productName ?? "Mahsulot nomi kiritilmagan"}</div>
-            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 text-slate-600">
-              <dt className="text-slate-400">Karobka soni</dt>
-              <dd className="font-medium text-slate-900">{batch.packageCount}</dd>
-              <dt className="text-slate-400">Kub, m³</dt>
-              <dd className="font-medium text-slate-900">{Number(batch.volumeCbm).toFixed(2)}</dd>
-              <dt className="text-slate-400">Kilo, kg</dt>
-              <dd className="font-medium text-slate-900">{Number(batch.totalWeightKg).toFixed(1)}</dd>
-              <dt className="text-slate-400">Qadoq</dt>
-              <dd className="font-medium text-slate-900">{PACKING_LABEL[batch.packingType]}</dd>
-              <dt className="text-slate-400">Kirim sanasi</dt>
-              <dd className="font-medium text-slate-900">{batch.intakeDate.toLocaleDateString("uz-UZ")}</dd>
-            </dl>
-            <div className="pt-2">
-              <Badge tone={stageTone(batch.currentLocation, batch.inTransit)}>
-                {stageLabel(batch.currentLocation, batch.inTransit)}
-              </Badge>
-            </div>
-            <p className="pt-2 text-xs text-slate-400 no-print break-all">{scanUrl}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3 no-print">
+        <Badge tone={stageTone(batch.currentLocation, batch.inTransit)}>
+          {stageLabel(batch.currentLocation, batch.inTransit)}
+        </Badge>
+        <span className="text-xs text-slate-400">Qadoq: {PACKING_LABEL[batch.packingType]}</span>
+      </div>
+
+      <div className="flex justify-center py-2">
+        <div className="w-full max-w-xs overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md">
+          {/* SKLAD — eng ustuvor ma'lumot */}
+          <div className="bg-accent px-4 py-2.5 text-center">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-white/70">Sklad</div>
+            <div className="truncate text-base font-bold text-white">{batch.currentLocation.name}</div>
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="flex flex-col items-center gap-3 px-5 py-5">
+            {/* GS-KOD + HARFLI KOD — eng katta, markaziy urg'u */}
+            <div className="flex items-center gap-2">
+              <span className="text-4xl font-black tracking-tight text-slate-900">{batch.client.code}</span>
+              {batch.letterCode && (
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-2xl font-bold text-white">
+                  {batch.letterCode}
+                </span>
+              )}
+            </div>
+
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={qrDataUrl} alt="QR kod" className="h-40 w-40" />
+
+            {/* Kichikroq ma'lumotlar */}
+            <div className="w-full space-y-1 border-t border-dashed border-slate-200 pt-3 text-center text-xs text-slate-500">
+              <div className="truncate font-medium text-slate-700">
+                {batch.productName ?? "Mahsulot nomi kiritilmagan"}
+              </div>
+              <div>
+                {batch.packageCount} karobka · {Number(batch.totalWeightKg).toFixed(1)} kg
+              </div>
+              <div>Qabul sanasi: {batch.intakeDate.toLocaleDateString("uz-UZ")}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p className="break-all text-center text-xs text-slate-400 no-print">{scanUrl}</p>
 
       <Card className="no-print">
         <CardHeader>

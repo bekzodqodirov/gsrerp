@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import type { ParsedIntakeRow } from "@/lib/import/excel-mapper";
 import { advanceCounterIfUsed } from "@/lib/actions/gs-code";
+import { logAudit } from "@/lib/audit/log";
 
 export async function importIntakeBatches(locationId: string, rows: ParsedIntakeRow[]) {
   const session = await requireRole(["admin", "warehouse"]);
@@ -22,6 +23,13 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
       const created = await prisma.client.create({ data: { code, name: code } });
       clientByCode.set(code, created);
       await advanceCounterIfUsed(code);
+      await logAudit({
+        userId: session.user.id,
+        tableName: "clients",
+        recordId: created.id,
+        action: "create_from_import",
+        diff: { code: created.code },
+      });
     }
   }
 
@@ -31,7 +39,7 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
     if (!client) continue;
     if (!row.totalWeightKg) continue; // og'irlik bo'lmasa, kirim yaratilmaydi
 
-    await prisma.intakeBatch.create({
+    const batch = await prisma.intakeBatch.create({
       data: {
         clientId: client.id,
         locationId,
@@ -49,6 +57,13 @@ export async function importIntakeBatches(locationId: string, rows: ParsedIntake
         costNotes: row.costNotes,
         createdById: session.user.id,
       },
+    });
+    await logAudit({
+      userId: session.user.id,
+      tableName: "intake_batches",
+      recordId: batch.id,
+      action: "create_from_import",
+      diff: { clientCode: client.code, packageCount: batch.packageCount, volumeCbm: batch.volumeCbm.toString() },
     });
     imported++;
   }

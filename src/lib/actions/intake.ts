@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { intakeBatchBulkSchema } from "@/lib/validation/schemas";
 import { ActionState } from "@/lib/actions/action-state";
+import { logAudit } from "@/lib/audit/log";
 
 export async function createIntakeBatchesBulk(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const session = await requireRole(["admin", "warehouse"]);
@@ -35,8 +36,9 @@ export async function createIntakeBatchesBulk(_prev: ActionState, formData: Form
   }
 
   const d = parsed.data;
+  const client = await prisma.client.findUniqueOrThrow({ where: { id: d.clientId }, select: { code: true } });
 
-  await prisma.$transaction(
+  const created = await prisma.$transaction(
     d.lines.map((line) =>
       prisma.intakeBatch.create({
         data: {
@@ -60,6 +62,22 @@ export async function createIntakeBatchesBulk(_prev: ActionState, formData: Form
       })
     )
   );
+
+  for (const batch of created) {
+    await logAudit({
+      userId: session.user.id,
+      tableName: "intake_batches",
+      recordId: batch.id,
+      action: "create",
+      diff: {
+        clientCode: client.code,
+        productName: batch.productName,
+        packageCount: batch.packageCount,
+        volumeCbm: batch.volumeCbm.toString(),
+        totalWeightKg: batch.totalWeightKg.toString(),
+      },
+    });
+  }
 
   revalidatePath("/intake");
   revalidatePath("/stock");

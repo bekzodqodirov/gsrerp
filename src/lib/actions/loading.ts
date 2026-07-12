@@ -10,6 +10,7 @@ import {
   loadingCostSchema,
 } from "@/lib/validation/schemas";
 import { parseOrError, formDataToObject, ActionState } from "@/lib/actions/action-state";
+import { logAudit } from "@/lib/audit/log";
 
 export async function createLoadingEvent(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const session = await requireRole(["admin", "logistics"]);
@@ -29,6 +30,13 @@ export async function createLoadingEvent(_prev: ActionState, formData: FormData)
   });
 
   await prisma.truck.update({ where: { id: d.truckId }, data: { status: "loading" } });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_events",
+    recordId: event.id,
+    action: "create",
+    diff: { truckId: d.truckId, fromLocationId: d.fromLocationId, toLocationId: d.toLocationId },
+  });
 
   revalidatePath("/loading");
   redirect(`/loading/${event.id}`);
@@ -80,7 +88,7 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
     return { error: "Manfiy tuzatish yuklangan miqdordan oshib ketdi" };
   }
 
-  await prisma.loadingLineItem.create({
+  const line = await prisma.loadingLineItem.create({
     data: {
       loadingEventId,
       intakeBatchId: d.intakeBatchId,
@@ -91,6 +99,13 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
   });
 
   await recomputeBatchStatus(d.intakeBatchId);
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_line_items",
+    recordId: line.id,
+    action: "create",
+    diff: { intakeBatchId: d.intakeBatchId, packageCountLoaded: d.packageCountLoaded, note: d.note },
+  });
 
   revalidatePath(`/loading/${loadingEventId}`);
   revalidatePath("/stock");
@@ -99,7 +114,7 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
 }
 
 export async function updateLoadingEventStatus(loadingEventId: string, status: "loading" | "departed" | "arrived" | "cleared") {
-  await requireRole(["admin", "logistics"]);
+  const session = await requireRole(["admin", "logistics"]);
 
   const event = await prisma.loadingEvent.update({
     where: { id: loadingEventId },
@@ -146,6 +161,14 @@ export async function updateLoadingEventStatus(loadingEventId: string, status: "
     }
   }
 
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_events",
+    recordId: loadingEventId,
+    action: "status_change",
+    diff: { status },
+  });
+
   revalidatePath(`/loading/${loadingEventId}`);
   revalidatePath("/trucks");
   revalidatePath("/stock");
@@ -154,14 +177,21 @@ export async function updateLoadingEventStatus(loadingEventId: string, status: "
 }
 
 export async function addTransitCheckpoint(loadingEventId: string, formData: FormData) {
-  await requireRole(["admin", "logistics"]);
+  const session = await requireRole(["admin", "logistics"]);
 
   const locationId = String(formData.get("locationId") ?? "");
   const note = String(formData.get("note") ?? "").trim() || undefined;
   if (!locationId) return;
 
-  await prisma.transitCheckpoint.create({
+  const checkpoint = await prisma.transitCheckpoint.create({
     data: { loadingEventId, locationId, arrivedAt: new Date(), note },
+  });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "transit_checkpoints",
+    recordId: checkpoint.id,
+    action: "create",
+    diff: { locationId, note },
   });
 
   revalidatePath(`/loading/${loadingEventId}`);
@@ -174,7 +204,7 @@ export async function addLoadingCost(_prev: ActionState, formData: FormData): Pr
   if (parsed.error) return parsed.error;
   const d = parsed.data;
 
-  await prisma.loadingCost.create({
+  const cost = await prisma.loadingCost.create({
     data: {
       loadingEventId: d.loadingEventId,
       costType: d.costType,
@@ -182,6 +212,13 @@ export async function addLoadingCost(_prev: ActionState, formData: FormData): Pr
       notes: d.notes,
       createdById: session.user.id,
     },
+  });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_costs",
+    recordId: cost.id,
+    action: "create",
+    diff: { costType: d.costType, amountCny: d.amountCny.toString(), notes: d.notes },
   });
 
   revalidatePath(`/loading/${d.loadingEventId}`);

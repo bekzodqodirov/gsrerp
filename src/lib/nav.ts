@@ -17,6 +17,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/costs", label: "Xarajatlar", roles: ["admin", "accounting"] },
   { href: "/delivery", label: "Yetkazib berish (Места)", roles: ["admin", "logistics", "accounting"] },
   { href: "/reports", label: "Hisobotlar", roles: ["admin", "accounting"] },
+  { href: "/activity", label: "Faoliyat tarixi", roles: ["admin", "warehouse", "logistics", "accounting"] },
   { href: "/locations", label: "Joylashuvlar", roles: ["admin"] },
   { href: "/users", label: "Foydalanuvchilar", roles: ["admin"] },
 ];

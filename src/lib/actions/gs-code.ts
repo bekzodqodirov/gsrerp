@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { ActionState } from "@/lib/actions/action-state";
+import { logAudit } from "@/lib/audit/log";
 
 async function getOrCreateCounter() {
   return prisma.gsCodeCounter.upsert({
@@ -30,7 +31,7 @@ export async function advanceCounterIfUsed(usedCode: string) {
 }
 
 export async function setGsCodeCounter(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireRole(["admin"]);
+  const session = await requireRole(["admin"]);
 
   const prefix = String(formData.get("prefix") ?? "").trim() || "GS";
   const nextValue = Number(formData.get("nextValue"));
@@ -42,6 +43,13 @@ export async function setGsCodeCounter(_prev: ActionState, formData: FormData): 
     where: { id: 1 },
     update: { prefix, nextValue },
     create: { id: 1, prefix, nextValue },
+  });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "gs_code_counter",
+    recordId: "1",
+    action: "update",
+    diff: { prefix, nextValue },
   });
 
   revalidatePath("/clients");

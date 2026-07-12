@@ -14,7 +14,7 @@ export default async function UsersPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">Foydalanuvchilar</h1>
         <Link href="/users/new">
           <Button>+ Yangi foydalanuvchi</Button>

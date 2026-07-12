@@ -53,7 +53,7 @@ export function ImportClient({ locations }: { locations: Option[] }) {
           type="file"
           accept=".xlsx,.xls"
           onChange={handleFile}
-          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:font-medium file:text-white file:hover:bg-accent-hover"
         />
       </Field>
 

@@ -20,7 +20,7 @@ export function GsCodeSettingsForm({ prefix, nextValue }: { prefix: string; next
   const [state, formAction] = useActionState<ActionState, FormData>(setGsCodeCounter, {});
 
   return (
-    <form action={formAction} className="flex items-end gap-3">
+    <form action={formAction} className="flex flex-wrap items-end gap-3">
       <Field label="Prefiks" error={state.fieldErrors?.prefix}>
         <Input name="prefix" defaultValue={prefix} className="w-20" />
       </Field>

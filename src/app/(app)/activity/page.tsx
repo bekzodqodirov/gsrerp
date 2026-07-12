@@ -76,7 +76,7 @@ export default async function ActivityPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">Faoliyat tarixi</h1>
         <div className="text-sm text-slate-500">Oxirgi {logs.length} ta yozuv</div>
       </div>

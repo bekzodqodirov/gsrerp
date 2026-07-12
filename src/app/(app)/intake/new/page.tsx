@@ -12,7 +12,7 @@ export default async function NewIntakePage() {
   ]);
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-5xl">
       <Card>
         <CardHeader>
           <CardTitle>Yangi kirim (ombor)</CardTitle>

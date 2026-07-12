@@ -62,9 +62,27 @@ function recomputeRow(row: Row): Row {
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" disabled={pending} className="w-full sm:w-auto sm:px-8">
       {pending ? "Saqlanmoqda..." : "Kirimni saqlash"}
     </Button>
+  );
+}
+
+function MiniField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-slate-500">{label}</label>
+      {children}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+    </div>
   );
 }
 
@@ -109,7 +127,7 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="linesJson" value={linesJson} />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Mijoz (GS-kod)" error={state.fieldErrors?.clientId}>
           <Select name="clientId" required defaultValue="">
             <option value="" disabled>
@@ -134,9 +152,6 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
             ))}
           </Select>
         </Field>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
         <Field label="Kirim sanasi" error={state.fieldErrors?.intakeDate}>
           <Input type="date" name="intakeDate" required defaultValue={today} />
         </Field>
@@ -162,124 +177,128 @@ export function IntakeForm({ clients, locations }: { clients: Option[]; location
           name="receiptPhotos"
           accept="image/*"
           multiple
-          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:font-medium file:text-white file:hover:bg-accent-hover"
         />
       </Field>
 
-      <div className="overflow-x-auto rounded-md border border-slate-200">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-            <tr>
-              <th className="px-2 py-2">Mahsulot</th>
-              <th className="px-2 py-2">Karobka</th>
-              <th className="px-2 py-2">X (sm)</th>
-              <th className="px-2 py-2">Y (sm)</th>
-              <th className="px-2 py-2">Z (sm)</th>
-              <th className="px-2 py-2">1 dona, kg</th>
-              <th className="px-2 py-2">Umumiy kub, m³</th>
-              <th className="px-2 py-2">Umumiy kg</th>
-              <th className="px-2 py-2">Izoh</th>
-              <th className="px-2 py-2">Rasm</th>
-              <th className="px-2 py-2"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.map((row, i) => (
-              <tr key={row.id}>
-                <td className="px-1 py-2 w-36">
-                  <Input value={row.productName} onChange={(e) => updateRow(i, "productName", e.target.value)} />
-                </td>
-                <td className="px-1 py-2 w-20">
+      <div className="space-y-3">
+        {rows.map((row, i) => (
+          <div key={row.id} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 sm:p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-xs font-bold text-accent">
+                  {i + 1}
+                </span>
+                Tovar qatori
+              </span>
+              <button
+                type="button"
+                onClick={() => removeRow(i)}
+                disabled={rows.length === 1}
+                className="rounded-md px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:text-slate-300 disabled:hover:bg-transparent"
+              >
+                O&apos;chirish
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+                <MiniField label="Mahsulot nomi">
                   <Input
-                    type="number"
-                    step="1"
-                    value={row.packageCount}
-                    onChange={(e) => updateRow(i, "packageCount", e.target.value)}
+                    value={row.productName}
+                    onChange={(e) => updateRow(i, "productName", e.target.value)}
+                    placeholder="masalan: o'yinchoq"
                   />
-                  {state.fieldErrors?.[`lines.${i}.packageCount`] && (
-                    <p className="mt-1 text-xs text-red-600">{state.fieldErrors[`lines.${i}.packageCount`]}</p>
-                  )}
-                </td>
-                <td className="px-1 py-2 w-20">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={row.lengthCm}
-                    onChange={(e) => updateRow(i, "lengthCm", e.target.value)}
-                  />
-                </td>
-                <td className="px-1 py-2 w-20">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={row.widthCm}
-                    onChange={(e) => updateRow(i, "widthCm", e.target.value)}
-                  />
-                </td>
-                <td className="px-1 py-2 w-20">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={row.heightCm}
-                    onChange={(e) => updateRow(i, "heightCm", e.target.value)}
-                  />
-                </td>
-                <td className="px-1 py-2 w-24">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={row.unitWeightKg}
-                    onChange={(e) => updateRow(i, "unitWeightKg", e.target.value)}
-                  />
-                </td>
-                <td className="px-1 py-2 w-28">
-                  <Input
-                    type="number"
-                    step="0.001"
-                    value={row.volumeCbm}
-                    onChange={(e) => updateRow(i, "volumeCbm", e.target.value)}
-                  />
-                  {state.fieldErrors?.[`lines.${i}.volumeCbm`] && (
-                    <p className="mt-1 text-xs text-red-600">{state.fieldErrors[`lines.${i}.volumeCbm`]}</p>
-                  )}
-                </td>
-                <td className="px-1 py-2 w-28">
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={row.totalWeightKg}
-                    onChange={(e) => updateRow(i, "totalWeightKg", e.target.value)}
-                  />
-                  {state.fieldErrors?.[`lines.${i}.totalWeightKg`] && (
-                    <p className="mt-1 text-xs text-red-600">{state.fieldErrors[`lines.${i}.totalWeightKg`]}</p>
-                  )}
-                </td>
-                <td className="px-1 py-2 w-32">
+                </MiniField>
+              </div>
+              <MiniField label="Karobka soni" error={state.fieldErrors?.[`lines.${i}.packageCount`]}>
+                <Input
+                  type="number"
+                  step="1"
+                  inputMode="numeric"
+                  value={row.packageCount}
+                  onChange={(e) => updateRow(i, "packageCount", e.target.value)}
+                />
+              </MiniField>
+              <MiniField label="X (sm)">
+                <Input
+                  type="number"
+                  step="0.1"
+                  inputMode="decimal"
+                  value={row.lengthCm}
+                  onChange={(e) => updateRow(i, "lengthCm", e.target.value)}
+                />
+              </MiniField>
+              <MiniField label="Y (sm)">
+                <Input
+                  type="number"
+                  step="0.1"
+                  inputMode="decimal"
+                  value={row.widthCm}
+                  onChange={(e) => updateRow(i, "widthCm", e.target.value)}
+                />
+              </MiniField>
+              <MiniField label="Z (sm)">
+                <Input
+                  type="number"
+                  step="0.1"
+                  inputMode="decimal"
+                  value={row.heightCm}
+                  onChange={(e) => updateRow(i, "heightCm", e.target.value)}
+                />
+              </MiniField>
+              <MiniField label="1 dona, kg">
+                <Input
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={row.unitWeightKg}
+                  onChange={(e) => updateRow(i, "unitWeightKg", e.target.value)}
+                />
+              </MiniField>
+              <MiniField label="Umumiy kub, m³" error={state.fieldErrors?.[`lines.${i}.volumeCbm`]}>
+                <Input
+                  type="number"
+                  step="0.001"
+                  inputMode="decimal"
+                  value={row.volumeCbm}
+                  onChange={(e) => updateRow(i, "volumeCbm", e.target.value)}
+                />
+              </MiniField>
+              <MiniField label="Umumiy kg" error={state.fieldErrors?.[`lines.${i}.totalWeightKg`]}>
+                <Input
+                  type="number"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={row.totalWeightKg}
+                  onChange={(e) => updateRow(i, "totalWeightKg", e.target.value)}
+                />
+              </MiniField>
+              <div className="col-span-2 lg:col-span-2">
+                <MiniField label="Izoh">
                   <Input value={row.costNotes} onChange={(e) => updateRow(i, "costNotes", e.target.value)} />
-                </td>
-                <td className="px-1 py-2 w-32">
-                  <input type="file" name={`rowPhotos_${i}`} accept="image/*" multiple className="w-full text-xs" />
-                </td>
-                <td className="px-1 py-2 text-right">
-                  <button
-                    type="button"
-                    onClick={() => removeRow(i)}
-                    disabled={rows.length === 1}
-                    className="text-xs text-red-600 hover:underline disabled:text-slate-300"
-                  >
-                    O&apos;chirish
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </MiniField>
+              </div>
+              <div className="col-span-2 sm:col-span-3 lg:col-span-2">
+                <MiniField label="Tovar rasmi (bir nechta)">
+                  <input
+                    type="file"
+                    name={`rowPhotos_${i}`}
+                    accept="image/*"
+                    multiple
+                    className="block w-full rounded-md border border-dashed border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-600 file:mr-2 file:rounded file:border-0 file:bg-accent/10 file:px-2 file:py-1 file:text-xs file:font-medium file:text-accent"
+                  />
+                </MiniField>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
 
       <button
         type="button"
         onClick={addRow}
-        className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:border-accent hover:text-accent sm:w-auto sm:px-6"
       >
         + Qator qo&apos;shish
       </button>

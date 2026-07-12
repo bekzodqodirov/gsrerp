@@ -3,7 +3,10 @@ import clsx from "clsx";
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={clsx("rounded-lg border border-slate-200 bg-white shadow-sm", className)}
+      className={clsx(
+        "rounded-xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50",
+        className
+      )}
       {...props}
     />
   );

@@ -29,7 +29,7 @@ export default async function ClientsPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">Mijozlar</h1>
         <div className="flex items-center gap-3">
           {counter && (
@@ -60,7 +60,7 @@ export default async function ClientsPage({
         </Card>
       )}
 
-      <form className="flex gap-3" method="get">
+      <form className="flex flex-wrap gap-3" method="get">
         <Select name="salesManagerId" defaultValue={salesManagerId ?? ""} className="w-56">
           <option value="">Barcha sotuv menejerlari</option>
           {salesManagers.map((m) => (

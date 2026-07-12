@@ -49,12 +49,12 @@ export default async function StockPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">Ombor qoldig&apos;i</h1>
         <div className="text-sm text-slate-500">Jami hajm: {totalVolume.toFixed(2)} m³</div>
       </div>
 
-      <form className="flex gap-3" method="get">
+      <form className="flex flex-wrap gap-3" method="get">
         <Select name="clientId" defaultValue={clientId ?? ""} className="w-48">
           <option value="">Barcha mijozlar</option>
           {clients.map((c) => (

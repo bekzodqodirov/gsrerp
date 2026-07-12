@@ -80,7 +80,7 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">
             Yuklash — {event.truck.code}
@@ -93,7 +93,7 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
         <Badge tone={STATUS_TONE[event.status]}>{STATUS_LABEL[event.status]}</Badge>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <form action={setStatus.bind(null, "loading")}>
           <Button type="submit" variant="secondary" disabled={event.status === "loading"}>
             Yuklanmoqda

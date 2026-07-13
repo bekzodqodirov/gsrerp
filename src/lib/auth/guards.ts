@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 
-export type Role = "admin" | "warehouse" | "logistics" | "accounting";
+export type Role = "admin" | "warehouse" | "logistics" | "accounting" | "sales";
 
 export async function requireSession() {
   const session = await auth();

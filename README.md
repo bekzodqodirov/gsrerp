@@ -18,7 +18,7 @@ Xitoy (Yiwu, Guangzhou) ↔ O'zbekiston (Toshkent) yo'nalishida yuk konsolidatsi
 
 ## Lokal ishga tushirish
 
-1. Bog'liqliklarni o'rnatish:
+1. Bog'liqliklarni o'rnatish (Prisma Client `postinstall` orqali avtomatik generatsiya qilinadi):
    ```bash
    npm install
    ```

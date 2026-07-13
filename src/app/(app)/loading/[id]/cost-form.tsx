@@ -22,7 +22,7 @@ export function CostForm({ loadingEventId }: { loadingEventId: string }) {
   return (
     <form action={formAction} className="space-y-3">
       <input type="hidden" name="loadingEventId" value={loadingEventId} />
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Xarajat turi" error={state.fieldErrors?.costType}>
           <Select name="costType" required defaultValue="forklift">
             <option value="forklift">Avtopogruzchik (叉车)</option>

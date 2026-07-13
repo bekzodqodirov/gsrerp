@@ -30,11 +30,16 @@ export default async function LoadingListPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">Yuklash hodisalari</h1>
-        <Link href="/loading/new">
-          <Button>+ Yangi yuklash</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/loading/plan">
+            <Button variant="secondary">Yuklash rejasi</Button>
+          </Link>
+          <Link href="/loading/new">
+            <Button>+ Yangi yuklash</Button>
+          </Link>
+        </div>
       </div>
 
       <Card>

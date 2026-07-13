@@ -17,15 +17,17 @@ export default async function StockPage({
 }: {
   searchParams: Promise<{ clientId?: string; locationId?: string }>;
 }) {
-  await requireSession();
+  const session = await requireSession();
+  const myLocationId = session.user.role === "warehouse" ? session.user.locationId : null;
   const { clientId, locationId } = await searchParams;
+  const effectiveLocationId = myLocationId ?? locationId;
 
   const [batches, clients, locations] = await Promise.all([
     prisma.intakeBatch.findMany({
       where: {
         status: { in: ["in_stock", "partially_loaded"] },
         clientId: clientId || undefined,
-        currentLocationId: locationId || undefined,
+        currentLocationId: effectiveLocationId || undefined,
       },
       orderBy: { intakeDate: "asc" },
       include: {
@@ -49,12 +51,14 @@ export default async function StockPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-slate-900">Ombor qoldig&apos;i</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-slate-900">
+          Ombor qoldig&apos;i{myLocationId && <span className="text-slate-400"> — mening omborim</span>}
+        </h1>
         <div className="text-sm text-slate-500">Jami hajm: {totalVolume.toFixed(2)} m³</div>
       </div>
 
-      <form className="flex gap-3" method="get">
+      <form className="flex flex-wrap gap-3" method="get">
         <Select name="clientId" defaultValue={clientId ?? ""} className="w-48">
           <option value="">Barcha mijozlar</option>
           {clients.map((c) => (
@@ -63,14 +67,16 @@ export default async function StockPage({
             </option>
           ))}
         </Select>
-        <Select name="locationId" defaultValue={locationId ?? ""} className="w-48">
-          <option value="">Barcha joylashuvlar</option>
-          {locations.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.name}
-            </option>
-          ))}
-        </Select>
+        {!myLocationId && (
+          <Select name="locationId" defaultValue={locationId ?? ""} className="w-48">
+            <option value="">Barcha joylashuvlar</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </Select>
+        )}
         <button type="submit" className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm">
           Filtrlash
         </button>

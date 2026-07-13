@@ -23,14 +23,20 @@ export async function createUser(_prev: ActionState, formData: FormData): Promis
 
   const passwordHash = await bcrypt.hash(d.password, 10);
   const user = await prisma.user.create({
-    data: { email: d.email, name: d.name, role: d.role, passwordHash },
+    data: {
+      email: d.email,
+      name: d.name,
+      role: d.role,
+      passwordHash,
+      locationId: d.role === "warehouse" ? d.locationId : null,
+    },
   });
   await logAudit({
     userId: session.user.id,
     tableName: "users",
     recordId: user.id,
     action: "create",
-    diff: { email: user.email, name: user.name, role: user.role },
+    diff: { email: user.email, name: user.name, role: user.role, locationId: user.locationId },
   });
 
   revalidatePath("/users");

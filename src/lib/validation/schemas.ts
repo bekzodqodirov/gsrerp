@@ -5,6 +5,7 @@ export const clientSchema = z.object({
   name: z.string().trim().min(1, "Nomi majburiy"),
   phone: z.string().trim().optional(),
   notes: z.string().trim().optional(),
+  salesManagerId: z.string().trim().optional(),
 });
 
 export const locationSchema = z.object({
@@ -33,6 +34,10 @@ export const intakeBatchLineSchema = z.object({
   unitGrossWeightKg: z.coerce.number().positive().optional().or(z.literal(undefined)),
   unitQty: z.coerce.number().int().positive().optional().or(z.literal(undefined)),
   costNotes: z.string().trim().optional(),
+});
+
+export const intakeBatchEditSchema = intakeBatchLineSchema.extend({
+  packingType: z.enum(["carton", "woven_bag", "pallet", "other"]),
 });
 
 export const intakeBatchBulkSchema = z.object({
@@ -72,9 +77,15 @@ export const deliveryReconciliationSchema = z.object({
   discrepancyNotes: z.string().trim().optional(),
 });
 
-export const userSchema = z.object({
-  email: z.string().trim().email("Email noto'g'ri"),
-  name: z.string().trim().min(1, "Ism majburiy"),
-  role: z.enum(["admin", "warehouse", "logistics", "accounting"]),
-  password: z.string().min(6, "Kamida 6 belgi"),
-});
+export const userSchema = z
+  .object({
+    email: z.string().trim().email("Email noto'g'ri"),
+    name: z.string().trim().min(1, "Ism majburiy"),
+    role: z.enum(["admin", "warehouse", "logistics", "accounting", "sales"]),
+    password: z.string().min(6, "Kamida 6 belgi"),
+    locationId: z.string().trim().optional(),
+  })
+  .refine((d) => d.role !== "warehouse" || !!d.locationId, {
+    message: "Ombor xodimi uchun ombor tanlanishi shart",
+    path: ["locationId"],
+  });

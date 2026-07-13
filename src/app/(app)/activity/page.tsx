@@ -8,6 +8,7 @@ import { ROLE_LABELS } from "@/lib/nav";
 const TABLE_LABELS: Record<string, string> = {
   clients: "Mijozlar",
   intake_batches: "Kirim",
+  intake_receipts: "Qabul",
   loading_events: "Yuklash hodisasi",
   loading_line_items: "Yuklash qatori",
   loading_costs: "Yuklash xarajati",
@@ -17,26 +18,39 @@ const TABLE_LABELS: Record<string, string> = {
   users: "Foydalanuvchilar",
   delivery_reconciliations: "Yetkazib berish",
   gs_code_counter: "GS-kod ketma-ketligi",
+  intake_letter_counter: "Harf ketma-ketligi",
+  intake_cartons: "Karobka",
+  carton_serial_counter: "Karobka ketma-ketligi",
 };
 
 const ACTION_LABELS: Record<string, string> = {
   create: "Yaratdi",
   create_from_import: "Import orqali yaratdi",
   update: "Tahrirladi",
+  delete: "O'chirdi",
   activate: "Faollashtirdi",
   deactivate: "Nofaollashtirdi",
   status_change: "Holatni o'zgartirdi",
   confirm: "Tasdiqladi",
+  qr_scan: "QR skanerladi",
+  carton_loaded: "Karobka yuklandi",
+  carton_received: "Karobka qabul qilindi",
+  carton_delivered: "Karobka yetkazildi",
 };
 
 const ACTION_TONE: Record<string, "amber" | "blue" | "green" | "slate" | "red"> = {
   create: "green",
   create_from_import: "green",
   update: "blue",
+  delete: "red",
   activate: "green",
   deactivate: "red",
   status_change: "amber",
   confirm: "blue",
+  qr_scan: "slate",
+  carton_loaded: "blue",
+  carton_received: "amber",
+  carton_delivered: "green",
 };
 
 function formatDiff(diff: unknown): string {
@@ -75,7 +89,7 @@ export default async function ActivityPage({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">Faoliyat tarixi</h1>
         <div className="text-sm text-slate-500">Oxirgi {logs.length} ta yozuv</div>
       </div>

@@ -46,7 +46,7 @@ export async function createLoadingEvent(_prev: ActionState, formData: FormData)
 // LoadingEvent. Only line items whose event departs FROM the batch's current location
 // count toward "loaded on this leg" — earlier hops' line items no longer apply once the
 // batch has physically arrived somewhere new, so it becomes fully available again there.
-async function recomputeBatchStatus(intakeBatchId: string) {
+export async function recomputeBatchStatus(intakeBatchId: string) {
   const batch = await prisma.intakeBatch.findUniqueOrThrow({ where: { id: intakeBatchId } });
   const lines = await prisma.loadingLineItem.findMany({
     where: { intakeBatchId, loadingEvent: { fromLocationId: batch.currentLocationId } },
@@ -114,7 +114,17 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
 }
 
 export async function updateLoadingEventStatus(loadingEventId: string, status: "loading" | "departed" | "arrived" | "cleared") {
-  const session = await requireRole(["admin", "logistics"]);
+  const session = await requireRole(["admin", "logistics", "warehouse"]);
+
+  if (session.user.role === "warehouse") {
+    // Sklad xodimi faqat o'ziga tegishli bosqichni bajaradi: jo'natish (o'z omboridan
+    // chiqayotgan bo'lsa) yoki qabul (o'z omboriga kelayotgan bo'lsa) — boshqa amallar yo'q.
+    const existing = await prisma.loadingEvent.findUniqueOrThrow({ where: { id: loadingEventId } });
+    const allowed =
+      (status === "departed" && existing.fromLocationId === session.user.locationId) ||
+      (status === "arrived" && existing.toLocationId === session.user.locationId);
+    if (!allowed) redirect("/dashboard?denied=1");
+  }
 
   const event = await prisma.loadingEvent.update({
     where: { id: loadingEventId },
@@ -153,6 +163,12 @@ export async function updateLoadingEventStatus(loadingEventId: string, status: "
       // it just finished, so status must be recomputed against the new currentLocationId
       // (otherwise it stays "fully_loaded" forever and can never be allocated to the next hop).
       await Promise.all(intakeBatchIds.map((id) => recomputeBatchStatus(id)));
+      // Cartons scanned onto this leg become scannable again for the next hop (or for
+      // final delivery) — same reasoning as the batch-level ledger reset above.
+      await prisma.intakeCarton.updateMany({
+        where: { loadingLineItem: { loadingEventId }, status: "loaded" },
+        data: { status: "in_stock", loadingLineItemId: null },
+      });
     } else if (status === "loading") {
       await prisma.intakeBatch.updateMany({
         where: { id: { in: intakeBatchIds } },
@@ -224,4 +240,52 @@ export async function addLoadingCost(_prev: ActionState, formData: FormData): Pr
   revalidatePath(`/loading/${d.loadingEventId}`);
   revalidatePath("/costs");
   return {};
+}
+
+// Logistics designates "load N boxes of this batch onto this truck" ahead of time — a
+// pure planning record, kept separate from the actual scanned/manual packageCountLoaded
+// ledger so it never distorts that math. The dispatch page shows scanned-vs-planned.
+export async function addLoadingPlanItem(loadingEventId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await requireRole(["admin", "logistics"]);
+
+  const intakeBatchId = String(formData.get("intakeBatchId") ?? "");
+  const plannedCount = Number(formData.get("plannedCount"));
+  if (!intakeBatchId) return { error: "Partiya tanlanmagan", fieldErrors: { intakeBatchId: "Partiya tanlanmagan" } };
+  if (!Number.isInteger(plannedCount) || plannedCount <= 0) {
+    return { error: "Reja miqdori musbat butun son bo'lishi kerak", fieldErrors: { plannedCount: "Noto'g'ri qiymat" } };
+  }
+
+  const item = await prisma.loadingPlanItem.create({
+    data: { loadingEventId, intakeBatchId, plannedCount, createdById: session.user.id },
+  });
+
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_plan_items",
+    recordId: item.id,
+    action: "create",
+    diff: { loadingEventId, intakeBatchId, plannedCount },
+  });
+
+  revalidatePath(`/loading/${loadingEventId}`);
+  revalidatePath(`/dispatch/${loadingEventId}`);
+  revalidatePath("/loading/plan");
+  return {};
+}
+
+export async function removeLoadingPlanItem(id: string) {
+  const session = await requireRole(["admin", "logistics"]);
+
+  const item = await prisma.loadingPlanItem.delete({ where: { id } });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_plan_items",
+    recordId: id,
+    action: "delete",
+    diff: { intakeBatchId: item.intakeBatchId, plannedCount: item.plannedCount },
+  });
+
+  revalidatePath(`/loading/${item.loadingEventId}`);
+  revalidatePath(`/dispatch/${item.loadingEventId}`);
+  revalidatePath("/loading/plan");
 }

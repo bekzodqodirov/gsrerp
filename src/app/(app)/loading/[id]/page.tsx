@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AllocateForm } from "./allocate-form";
 import { CostForm } from "./cost-form";
+import { LoadingCartonScanner } from "./loading-carton-scanner";
 import { updateLoadingEventStatus, addTransitCheckpoint } from "@/lib/actions/loading";
 
 const STATUS_TONE: Record<string, "amber" | "blue" | "green" | "slate"> = {
@@ -45,9 +47,15 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
         orderBy: { createdAt: "desc" },
         include: { intakeBatch: { include: { client: true } }, createdBy: true },
       },
+      planItems: { include: { intakeBatch: { include: { client: true } } }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!event) notFound();
+
+  const loadedByBatch = new Map<string, number>();
+  for (const li of event.lineItems) {
+    loadedByBatch.set(li.intakeBatchId, (loadedByBatch.get(li.intakeBatchId) ?? 0) + li.packageCountLoaded);
+  }
 
   const availableBatchesRaw = await prisma.intakeBatch.findMany({
     where: {
@@ -80,7 +88,7 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">
             Yuklash — {event.truck.code}
@@ -93,7 +101,7 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
         <Badge tone={STATUS_TONE[event.status]}>{STATUS_LABEL[event.status]}</Badge>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <form action={setStatus.bind(null, "loading")}>
           <Button type="submit" variant="secondary" disabled={event.status === "loading"}>
             Yuklanmoqda
@@ -115,6 +123,55 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
           </Button>
         </form>
       </div>
+
+      {event.planItems.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              Reja bo&apos;yicha yuklash kerak
+              <Link href="/loading/plan" className="text-xs font-medium text-accent hover:underline">
+                Rejani tahrirlash
+              </Link>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                <tr>
+                  <th className="px-4 py-2">Mijoz</th>
+                  <th className="px-4 py-2">Yuklandi / Reja</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {event.planItems.map((p) => {
+                  const loaded = loadedByBatch.get(p.intakeBatchId) ?? 0;
+                  const done = loaded >= p.plannedCount;
+                  return (
+                    <tr key={p.id}>
+                      <td className="px-4 py-2 font-medium text-slate-900">
+                        {p.intakeBatch.client.code}
+                        {p.intakeBatch.letterCode ? ` · ${p.intakeBatch.letterCode}` : ""}
+                      </td>
+                      <td className={`px-4 py-2 font-medium ${done ? "text-emerald-600" : "text-amber-600"}`}>
+                        {loaded} / {p.plannedCount} {done && "✓"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Karobkalarni skanerlash (tavsiya etiladi)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LoadingCartonScanner loadingEventId={event.id} />
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
@@ -156,6 +213,7 @@ export default async function LoadingEventPage({ params }: { params: Promise<{ i
                 </tbody>
               </table>
             </div>
+            <p className="text-xs font-medium text-slate-500">Yoki qo&apos;lda kiriting (skaner ishlamasa):</p>
             <AllocateForm loadingEventId={event.id} batches={availableBatches} />
           </CardContent>
         </Card>

@@ -10,11 +10,11 @@ import type { Role } from "@/lib/auth/guards";
 
 export default async function UsersPage() {
   await requireRole(["admin"]);
-  const users = await prisma.user.findMany({ orderBy: { createdAt: "asc" } });
+  const users = await prisma.user.findMany({ orderBy: { createdAt: "asc" }, include: { location: true } });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900">Foydalanuvchilar</h1>
         <Link href="/users/new">
           <Button>+ Yangi foydalanuvchi</Button>
@@ -29,6 +29,7 @@ export default async function UsersPage() {
                 <th className="px-4 py-2">Ism</th>
                 <th className="px-4 py-2">Email</th>
                 <th className="px-4 py-2">Rol</th>
+                <th className="px-4 py-2">Ombor</th>
                 <th className="px-4 py-2">Holat</th>
                 <th className="px-4 py-2"></th>
               </tr>
@@ -41,6 +42,7 @@ export default async function UsersPage() {
                     <td className="px-4 py-2 font-medium text-slate-900">{u.name}</td>
                     <td className="px-4 py-2 text-slate-600">{u.email}</td>
                     <td className="px-4 py-2 text-slate-600">{ROLE_LABELS[u.role as Role]}</td>
+                    <td className="px-4 py-2 text-slate-600">{u.location?.name ?? "-"}</td>
                     <td className="px-4 py-2">
                       <Badge tone={u.isActive ? "green" : "slate"}>{u.isActive ? "Faol" : "Nofaol"}</Badge>
                     </td>

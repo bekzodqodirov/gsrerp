@@ -3,15 +3,42 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Data-table ergonomics: gentle row hover everywhere without per-page classes */
+tbody tr {
+  transition: background-color 120ms ease;
+}
+tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* QR/barcode label printing: hide app chrome, print only the label itself */
+@media print {
+  nav,
+  header {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
 }

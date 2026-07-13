@@ -21,6 +21,8 @@ import {
   X,
   Container,
   ScanLine,
+  ArrowUpFromLine,
+  ArrowDownToLine,
   type LucideIcon,
 } from "lucide-react";
 import { NAV_ITEMS } from "@/lib/nav";
@@ -33,6 +35,8 @@ const ICONS: Record<string, LucideIcon> = {
   "/import": FileSpreadsheet,
   "/stock": Warehouse,
   "/scan": ScanLine,
+  "/dispatch": ArrowUpFromLine,
+  "/receive": ArrowDownToLine,
   "/trucks": Truck,
   "/loading": PackageCheck,
   "/costs": Wallet,

@@ -34,6 +34,7 @@ const ACTION_LABELS: Record<string, string> = {
   confirm: "Tasdiqladi",
   qr_scan: "QR skanerladi",
   carton_loaded: "Karobka yuklandi",
+  carton_received: "Karobka qabul qilindi",
   carton_delivered: "Karobka yetkazildi",
 };
 
@@ -48,6 +49,7 @@ const ACTION_TONE: Record<string, "amber" | "blue" | "green" | "slate" | "red"> 
   confirm: "blue",
   qr_scan: "slate",
   carton_loaded: "blue",
+  carton_received: "amber",
   carton_delivered: "green",
 };
 

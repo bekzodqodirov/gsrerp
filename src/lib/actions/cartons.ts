@@ -57,11 +57,14 @@ type ScanResult = { ok: boolean; message: string };
 // for that carton's batch within this event and bumps its count by one — staff never
 // have to pre-select a batch, they just scan boxes as they physically load them.
 export async function scanCartonForLoading(loadingEventId: string, rawCode: string): Promise<ScanResult> {
-  const session = await requireRole(["admin", "logistics"]);
+  const session = await requireRole(["admin", "logistics", "warehouse"]);
   const sscc = extractScanCode(rawCode);
 
   const event = await prisma.loadingEvent.findUnique({ where: { id: loadingEventId }, include: { fromLocation: true } });
   if (!event) return { ok: false, message: "Yuklash hodisasi topilmadi" };
+  if (session.user.role === "warehouse" && event.fromLocationId !== session.user.locationId) {
+    return { ok: false, message: "Bu yuklash sizning omboringizdan emas" };
+  }
 
   const carton = await prisma.intakeCarton.findUnique({
     where: { sscc },
@@ -113,6 +116,43 @@ export async function scanCartonForLoading(loadingEventId: string, rawCode: stri
   revalidatePath("/stock");
   revalidatePath("/intake");
   return { ok: true, message: `✓ ${label} yuklandi` };
+}
+
+// Scanning a carton off the truck at an intermediate/destination warehouse, confirming it
+// physically arrived on THIS leg. This is a per-carton audit trail only — the actual state
+// flip (carton back to "in_stock", batch location update) still happens in bulk when the
+// receiving worker closes out the leg via updateLoadingEventStatus(id, "arrived"), so a
+// partial scan session here can't leave data in an inconsistent half-arrived state.
+export async function scanCartonForReceiving(loadingEventId: string, rawCode: string): Promise<ScanResult> {
+  const session = await requireRole(["admin", "logistics", "warehouse"]);
+  const sscc = extractScanCode(rawCode);
+
+  const event = await prisma.loadingEvent.findUnique({ where: { id: loadingEventId }, include: { toLocation: true } });
+  if (!event) return { ok: false, message: "Yuklash hodisasi topilmadi" };
+  if (session.user.role === "warehouse" && event.toLocationId !== session.user.locationId) {
+    return { ok: false, message: "Bu yuk sizning omboringizga kelmayapti" };
+  }
+
+  const carton = await prisma.intakeCarton.findUnique({
+    where: { sscc },
+    include: { batch: { include: { client: true } }, loadingLineItem: true },
+  });
+  if (!carton) return { ok: false, message: "Karobka topilmadi" };
+  if (carton.loadingLineItem?.loadingEventId !== loadingEventId) {
+    return { ok: false, message: "Bu karobka shu yuklash bilan bog'liq emas" };
+  }
+
+  const label = `${carton.batch.client.code}${carton.batch.letterCode ? `-${carton.batch.letterCode}` : ""} (${carton.sequenceInBatch}/${carton.batch.packageCount})`;
+  await logAudit({
+    userId: session.user.id,
+    tableName: "intake_cartons",
+    recordId: carton.id,
+    action: "carton_received",
+    diff: { sscc, clientCode: carton.batch.client.code, letterCode: carton.batch.letterCode, loadingEventId },
+  });
+
+  revalidatePath(`/receive/${loadingEventId}`);
+  return { ok: true, message: `✓ ${label} qabul qilindi` };
 }
 
 // Scanning a carton at the receiving end for a specific delivery reconciliation record —

@@ -114,7 +114,17 @@ export async function addLoadingLineItem(loadingEventId: string, _prev: ActionSt
 }
 
 export async function updateLoadingEventStatus(loadingEventId: string, status: "loading" | "departed" | "arrived" | "cleared") {
-  const session = await requireRole(["admin", "logistics"]);
+  const session = await requireRole(["admin", "logistics", "warehouse"]);
+
+  if (session.user.role === "warehouse") {
+    // Sklad xodimi faqat o'ziga tegishli bosqichni bajaradi: jo'natish (o'z omboridan
+    // chiqayotgan bo'lsa) yoki qabul (o'z omboriga kelayotgan bo'lsa) — boshqa amallar yo'q.
+    const existing = await prisma.loadingEvent.findUniqueOrThrow({ where: { id: loadingEventId } });
+    const allowed =
+      (status === "departed" && existing.fromLocationId === session.user.locationId) ||
+      (status === "arrived" && existing.toLocationId === session.user.locationId);
+    if (!allowed) redirect("/dashboard?denied=1");
+  }
 
   const event = await prisma.loadingEvent.update({
     where: { id: loadingEventId },

@@ -23,9 +23,10 @@ import {
   ScanLine,
   ArrowUpFromLine,
   ArrowDownToLine,
+  ListChecks,
   type LucideIcon,
 } from "lucide-react";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, NAV_GROUP_LABELS, type NavGroup } from "@/lib/nav";
 import type { Role } from "@/lib/auth/guards";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -38,6 +39,7 @@ const ICONS: Record<string, LucideIcon> = {
   "/dispatch": ArrowUpFromLine,
   "/receive": ArrowDownToLine,
   "/trucks": Truck,
+  "/loading/plan": ListChecks,
   "/loading": PackageCheck,
   "/costs": Wallet,
   "/delivery": ClipboardCheck,
@@ -58,6 +60,17 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const items = NAV_ITEMS.filter((item) => item.roles.includes(role));
+
+  // Longest matching href wins, so nested routes like /loading/plan don't also
+  // light up their parent /loading entry.
+  const activeHref = items.reduce<string | null>((best, item) => {
+    const matches = pathname === item.href || pathname.startsWith(item.href + "/");
+    if (!matches) return best;
+    if (!best || item.href.length > best.length) return item.href;
+    return best;
+  }, null);
+
+  const groups: NavGroup[] = ["asosiy", "ombor", "logistika", "moliya", "boshqaruv"];
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
@@ -100,24 +113,35 @@ export function Sidebar({
           </button>
         </div>
 
-        <div className="flex flex-col gap-0.5">
-          {items.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(item.href + "/");
-            const Icon = ICONS[item.href];
+        <div className="flex flex-col gap-3">
+          {groups.map((group) => {
+            const groupItems = items.filter((item) => item.group === group);
+            if (groupItems.length === 0) return null;
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={clsx(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-accent text-white shadow-md shadow-accent/30"
-                    : "text-slate-300 hover:bg-white/5 hover:text-white"
-                )}
-              >
-                {Icon && <Icon className="h-[18px] w-[18px] shrink-0 opacity-90" strokeWidth={2} />}
-                {item.label}
-              </Link>
+              <div key={group} className="flex flex-col gap-0.5">
+                <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  {NAV_GROUP_LABELS[group]}
+                </div>
+                {groupItems.map((item) => {
+                  const active = activeHref === item.href;
+                  const Icon = ICONS[item.href];
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={clsx(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        active
+                          ? "bg-accent text-white shadow-md shadow-accent/30"
+                          : "text-slate-300 hover:bg-white/5 hover:text-white"
+                      )}
+                    >
+                      {Icon && <Icon className="h-[18px] w-[18px] shrink-0 opacity-90" strokeWidth={2} />}
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
             );
           })}
         </div>

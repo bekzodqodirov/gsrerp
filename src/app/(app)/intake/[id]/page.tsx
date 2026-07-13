@@ -13,6 +13,7 @@ import { ensureCartonsForBatch } from "@/lib/actions/cartons";
 const ACTION_LABEL: Record<string, string> = {
   qr_scan: "Skanerlandi",
   carton_loaded: "Yuklandi",
+  carton_received: "Qabul qilindi",
   carton_delivered: "Yetkazildi",
 };
 

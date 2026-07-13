@@ -2,24 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import jsQR from "jsqr";
 import { Camera, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-type DetectorSupport = "supported" | "unsupported";
-
 export default function ScanCameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [support] = useState<DetectorSupport>(() =>
-    typeof window !== "undefined" && "BarcodeDetector" in window ? "supported" : "unsupported"
-  );
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState("");
   const router = useRouter();
 
   useEffect(() => {
-    if (support !== "supported") return;
-
     let stream: MediaStream | undefined;
     let stopped = false;
     let rafId = 0;
@@ -40,23 +35,24 @@ export default function ScanCameraPage() {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
 
-        const BarcodeDetectorCtor = (window as unknown as { BarcodeDetector: new (opts: { formats: string[] }) => {
-          detect: (source: HTMLVideoElement) => Promise<{ rawValue: string }[]>;
-        } }).BarcodeDetector;
-        const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
+        const canvas = canvasRef.current ?? document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
-        const tick = async () => {
-          if (stopped || !videoRef.current) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes.length > 0) {
+        const tick = () => {
+          if (stopped || !videoRef.current || !ctx) return;
+          const video = videoRef.current;
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const result = jsQR(frame.data, frame.width, frame.height, { inversionAttempts: "dontInvert" });
+            if (result?.data) {
               stopped = true;
               stream?.getTracks().forEach((t) => t.stop());
-              goTo(codes[0].rawValue);
+              goTo(result.data);
               return;
             }
-          } catch {
-            // per-frame decode errors are expected while framing the code — ignore
           }
           rafId = requestAnimationFrame(tick);
         };
@@ -72,7 +68,7 @@ export default function ScanCameraPage() {
       if (rafId) cancelAnimationFrame(rafId);
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [support, router]);
+  }, [router]);
 
   function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,23 +85,24 @@ export default function ScanCameraPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {support === "supported" && !cameraError && (
-            <div className="overflow-hidden rounded-lg bg-black">
-              <video ref={videoRef} className="w-full" muted playsInline />
-            </div>
+          {!cameraError && (
+            <>
+              <div className="overflow-hidden rounded-lg bg-black">
+                <video ref={videoRef} className="w-full" muted playsInline />
+              </div>
+              <canvas ref={canvasRef} className="hidden" />
+              <p className="text-center text-xs text-slate-500">
+                Karobkadagi QR kodni kamera oldiga tuting — avtomatik ochiladi.
+              </p>
+            </>
           )}
-          {support === "supported" && !cameraError && (
-            <p className="text-center text-xs text-slate-500">
-              Karobkadagi QR kodni kamera oldiga tuting — avtomatik ochiladi.
-            </p>
-          )}
-          {(support === "unsupported" || cameraError) && (
+          {cameraError && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
               <div className="mb-1 flex items-center gap-2 font-medium">
                 <Camera className="h-4 w-4" />
-                Kamera bilan skanerlash ishlamayapti
+                Kamera ishlamayapti
               </div>
-              {cameraError ?? "Bu brauzer ichki kamera skanerini qo'llab-quvvatlamaydi. Telefonning oddiy Kamera ilovasi bilan QR kodni skanerlang — u avtomatik shu sahifaga olib keladi."}
+              {cameraError}
             </div>
           )}
 

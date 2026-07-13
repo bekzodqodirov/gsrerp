@@ -241,3 +241,51 @@ export async function addLoadingCost(_prev: ActionState, formData: FormData): Pr
   revalidatePath("/costs");
   return {};
 }
+
+// Logistics designates "load N boxes of this batch onto this truck" ahead of time — a
+// pure planning record, kept separate from the actual scanned/manual packageCountLoaded
+// ledger so it never distorts that math. The dispatch page shows scanned-vs-planned.
+export async function addLoadingPlanItem(loadingEventId: string, _prev: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await requireRole(["admin", "logistics"]);
+
+  const intakeBatchId = String(formData.get("intakeBatchId") ?? "");
+  const plannedCount = Number(formData.get("plannedCount"));
+  if (!intakeBatchId) return { error: "Partiya tanlanmagan", fieldErrors: { intakeBatchId: "Partiya tanlanmagan" } };
+  if (!Number.isInteger(plannedCount) || plannedCount <= 0) {
+    return { error: "Reja miqdori musbat butun son bo'lishi kerak", fieldErrors: { plannedCount: "Noto'g'ri qiymat" } };
+  }
+
+  const item = await prisma.loadingPlanItem.create({
+    data: { loadingEventId, intakeBatchId, plannedCount, createdById: session.user.id },
+  });
+
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_plan_items",
+    recordId: item.id,
+    action: "create",
+    diff: { loadingEventId, intakeBatchId, plannedCount },
+  });
+
+  revalidatePath(`/loading/${loadingEventId}`);
+  revalidatePath(`/dispatch/${loadingEventId}`);
+  revalidatePath("/loading/plan");
+  return {};
+}
+
+export async function removeLoadingPlanItem(id: string) {
+  const session = await requireRole(["admin", "logistics"]);
+
+  const item = await prisma.loadingPlanItem.delete({ where: { id } });
+  await logAudit({
+    userId: session.user.id,
+    tableName: "loading_plan_items",
+    recordId: id,
+    action: "delete",
+    diff: { intakeBatchId: item.intakeBatchId, plannedCount: item.plannedCount },
+  });
+
+  revalidatePath(`/loading/${item.loadingEventId}`);
+  revalidatePath(`/dispatch/${item.loadingEventId}`);
+  revalidatePath("/loading/plan");
+}

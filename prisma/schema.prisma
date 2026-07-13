@@ -87,6 +87,7 @@ model User {
   intakeReceipts  IntakeReceipt[]   @relation("IntakeReceiptCreatedBy")
   loadingEvents   LoadingEvent[]    @relation("LoadingEventCreatedBy")
   loadingLines    LoadingLineItem[] @relation("LoadingLineCreatedBy")
+  loadingPlans    LoadingPlanItem[] @relation("LoadingPlanCreatedBy")
   loadingCosts    LoadingCost[]     @relation("LoadingCostCreatedBy")
   auditLogs       AuditLog[]
   assignedClients Client[]          @relation("ClientSalesManager")
@@ -226,6 +227,7 @@ model IntakeBatch {
   loadingLines LoadingLineItem[]
   photos       IntakePhoto[]     @relation("IntakeBatchPhotos")
   cartons      IntakeCarton[]
+  planItems    LoadingPlanItem[]
 
   @@index([clientId])
   @@index([locationId])
@@ -308,9 +310,30 @@ model LoadingEvent {
   lineItems          LoadingLineItem[]
   costs              LoadingCost[]
   transitCheckpoints TransitCheckpoint[]
+  planItems          LoadingPlanItem[]
 
   @@index([truckId])
   @@map("loading_events")
+}
+
+// A logistics-assigned intent — "load N boxes of this batch onto this truck" — decided
+// before anyone physically touches a box. Deliberately separate from LoadingLineItem
+// (the actual scanned/entered ledger) so planning never interferes with the existing
+// packageCountLoaded math; the dispatch page just displays scanned-vs-planned side by side.
+model LoadingPlanItem {
+  id             String       @id @default(cuid())
+  loadingEvent   LoadingEvent @relation(fields: [loadingEventId], references: [id])
+  loadingEventId String
+  intakeBatch    IntakeBatch  @relation(fields: [intakeBatchId], references: [id])
+  intakeBatchId  String
+  plannedCount   Int
+  createdBy      User         @relation("LoadingPlanCreatedBy", fields: [createdById], references: [id])
+  createdById    String
+  createdAt      DateTime     @default(now())
+
+  @@index([loadingEventId])
+  @@index([intakeBatchId])
+  @@map("loading_plan_items")
 }
 
 // Append-only ledger: never update/delete, only insert new rows (incl. corrections)

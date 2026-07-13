@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import jsQR from "jsqr";
 import { Camera, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { extractScanCode } from "@/lib/sscc";
 
-type DetectorSupport = "supported" | "unsupported";
 type ScanResult = { ok: boolean; message: string };
 type LogEntry = ScanResult & { id: number };
 
@@ -13,12 +13,12 @@ const RESCAN_COOLDOWN_MS = 2500;
 
 // Embedded, continuous bulk scanner — used wherever staff need to confirm many physical
 // cartons in a row (loading a truck, receiving a delivery) without navigating away after
-// each one. Falls back to manual code entry when the camera/BarcodeDetector isn't available.
+// each one. Decodes QR frames with jsQR (pure JS, works in any browser with a camera) —
+// the native BarcodeDetector API this used to rely on isn't available in most desktop
+// browsers (Windows Chrome/Edge/Firefox), which meant the camera never even opened there.
 export function CartonScanner({ onScan }: { onScan: (code: string) => Promise<ScanResult> }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [support] = useState<DetectorSupport>(() =>
-    typeof window !== "undefined" && "BarcodeDetector" in window ? "supported" : "unsupported"
-  );
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,8 +36,6 @@ export function CartonScanner({ onScan }: { onScan: (code: string) => Promise<Sc
   }
 
   useEffect(() => {
-    if (support !== "supported") return;
-
     let stream: MediaStream | undefined;
     let stopped = false;
     let rafId = 0;
@@ -61,24 +59,21 @@ export function CartonScanner({ onScan }: { onScan: (code: string) => Promise<Sc
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
 
-        const BarcodeDetectorCtor = (
-          window as unknown as {
-            BarcodeDetector: new (opts: { formats: string[] }) => {
-              detect: (source: HTMLVideoElement) => Promise<{ rawValue: string }[]>;
-            };
-          }
-        ).BarcodeDetector;
-        const detector = new BarcodeDetectorCtor({ formats: ["qr_code"] });
+        const canvas = canvasRef.current ?? document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
-        const tick = async () => {
-          if (stopped || !videoRef.current) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes.length > 0) {
-              await handleDetected(codes[0].rawValue);
+        const tick = () => {
+          if (stopped || !videoRef.current || !ctx) return;
+          const video = videoRef.current;
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const result = jsQR(frame.data, frame.width, frame.height, { inversionAttempts: "dontInvert" });
+            if (result?.data) {
+              handleDetected(result.data);
             }
-          } catch {
-            // per-frame decode errors are expected while framing the code — ignore
           }
           rafId = requestAnimationFrame(tick);
         };
@@ -94,7 +89,7 @@ export function CartonScanner({ onScan }: { onScan: (code: string) => Promise<Sc
       if (rafId) cancelAnimationFrame(rafId);
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [support]);
+  }, []);
 
   async function handleManualSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -109,23 +104,24 @@ export function CartonScanner({ onScan }: { onScan: (code: string) => Promise<Sc
 
   return (
     <div className="space-y-3">
-      {support === "supported" && !cameraError && (
+      {!cameraError && (
         <>
           <div className="overflow-hidden rounded-lg bg-black">
             <video ref={videoRef} className="w-full" muted playsInline />
           </div>
+          <canvas ref={canvasRef} className="hidden" />
           <p className="text-center text-xs text-slate-500">
             Karobkalarni birin-ketin kamera oldiga tuting — har biri avtomatik tasdiqlanadi.
           </p>
         </>
       )}
-      {(support === "unsupported" || cameraError) && (
+      {cameraError && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
           <div className="mb-1 flex items-center gap-2 font-medium">
             <Camera className="h-4 w-4" />
-            Kamera bilan skanerlash ishlamayapti
+            Kamera ishlamayapti
           </div>
-          {cameraError ?? "Bu brauzer ichki kamera skanerini qo'llab-quvvatlamaydi. Quyida kodni qo'lda kiriting."}
+          {cameraError}
         </div>
       )}
 
@@ -144,10 +140,7 @@ export function CartonScanner({ onScan }: { onScan: (code: string) => Promise<Sc
       {log.length > 0 && (
         <ul className="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-slate-100 p-2 text-xs">
           {log.map((entry) => (
-            <li
-              key={entry.id}
-              className={entry.ok ? "text-emerald-700" : "text-red-600"}
-            >
+            <li key={entry.id} className={entry.ok ? "text-emerald-700" : "text-red-600"}>
               {entry.message}
             </li>
           ))}
